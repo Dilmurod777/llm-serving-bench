@@ -54,6 +54,21 @@ class _Engine:
             )
         return resp.json(), elapsed
 
+    async def _get_json(self, path: str) -> dict:
+        own = self._client is None
+        client = self._client or httpx.AsyncClient(timeout=10.0)
+        try:
+            resp = await client.get(f"{self.base_url}{path}")
+            return resp.json() if resp.status_code == 200 else {}
+        except Exception:
+            return {}
+        finally:
+            if own:
+                await client.aclose()
+
+    async def version(self) -> str:  # pragma: no cover - interface
+        raise NotImplementedError
+
     async def complete(self, prompt: str) -> Completion:  # pragma: no cover - interface
         raise NotImplementedError
 
@@ -75,6 +90,9 @@ class OllamaEngine(_Engine):
         super().__init__(base_url, max_tokens, client)
         self.model = model
 
+    async def version(self) -> str:
+        return str((await self._get_json("/api/version")).get("version", "unknown"))
+
     async def complete(self, prompt: str) -> Completion:
         payload = {
             "model": self.model,
@@ -89,6 +107,10 @@ class OllamaEngine(_Engine):
 
 class LlamaCppEngine(_Engine):
     name = "llamacpp"
+
+    async def version(self) -> str:
+        data = await self._get_json("/props")
+        return str(data.get("build_info") or "unknown")
 
     async def complete(self, prompt: str) -> Completion:
         payload = {
@@ -116,6 +138,9 @@ class VllmEngine(_Engine):
     ):
         super().__init__(base_url, max_tokens, client)
         self.model = model
+
+    async def version(self) -> str:
+        return str((await self._get_json("/version")).get("version", "unknown"))
 
     async def complete(self, prompt: str) -> Completion:
         payload = {

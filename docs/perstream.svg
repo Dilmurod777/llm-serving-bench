@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="IBM Plex Mono, monospace" font-size="11">
+<rect width="640" height="360" fill="#e4e3dd"/>
+<line x1="48" y1="24" x2="48" y2="304" stroke="#b6b5ad"/>
+<line x1="48" y1="304" x2="624" y2="304" stroke="#b6b5ad"/>
+<text x="40" y="32" text-anchor="end" fill="#5d5f5a">115.6</text>
+<text x="14" y="164" transform="rotate(-90 14 164)" text-anchor="middle" fill="#5d5f5a">tok/s per user</text>
+<text x="40" y="304" text-anchor="end" fill="#5d5f5a">0</text>
+<text x="144" y="322" text-anchor="middle" fill="#15171a">c=1</text>
+<rect x="72.0" y="41.4" width="38.4" height="262.6" fill="#b8321a"/>
+<text x="91.2" y="37.4" text-anchor="middle" fill="#15171a">108.4</text>
+<rect x="120.0" y="34.7" width="38.4" height="269.3" fill="#15171a"/>
+<text x="139.2" y="30.7" text-anchor="middle" fill="#15171a">111.2</text>
+<rect x="168.0" y="24.0" width="38.4" height="280.0" fill="#5d5f5a"/>
+<text x="187.2" y="20.0" text-anchor="middle" fill="#15171a">115.6</text>
+<text x="336" y="322" text-anchor="middle" fill="#15171a">c=8</text>
+<rect x="264.0" y="246.4" width="38.4" height="57.6" fill="#b8321a"/>
+<text x="283.2" y="242.4" text-anchor="middle" fill="#15171a">23.8</text>
+<rect x="312.0" y="241.0" width="38.4" height="63.0" fill="#15171a"/>
+<text x="331.2" y="237.0" text-anchor="middle" fill="#15171a">26</text>
+<rect x="360.0" y="56.9" width="38.4" height="247.1" fill="#5d5f5a"/>
+<text x="379.2" y="52.9" text-anchor="middle" fill="#15171a">102</text>
+<text x="528" y="322" text-anchor="middle" fill="#15171a">c=32</text>
+<rect x="456.0" y="242.0" width="38.4" height="62.0" fill="#b8321a"/>
+<text x="475.2" y="238.0" text-anchor="middle" fill="#15171a">25.6</text>
+<rect x="504.0" y="221.9" width="38.4" height="82.1" fill="#15171a"/>
+<text x="523.2" y="217.9" text-anchor="middle" fill="#15171a">33.9</text>
+<rect x="552.0" y="156.7" width="38.4" height="147.3" fill="#5d5f5a"/>
+<text x="571.2" y="152.7" text-anchor="middle" fill="#15171a">60.8</text>
+<rect x="48" y="340" width="10" height="10" fill="#b8321a"/>
+<text x="63" y="349" fill="#15171a">ollama</text>
+<rect x="143" y="340" width="10" height="10" fill="#15171a"/>
+<text x="158" y="349" fill="#15171a">llamacpp</text>
+<rect x="238" y="340" width="10" height="10" fill="#5d5f5a"/>
+<text x="253" y="349" fill="#15171a">vllm</text>
+</svg>

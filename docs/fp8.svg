@@ -2,24 +2,24 @@
 <rect width="640" height="360" fill="#e4e3dd"/>
 <line x1="48" y1="24" x2="48" y2="304" stroke="#b6b5ad"/>
 <line x1="48" y1="304" x2="624" y2="304" stroke="#b6b5ad"/>
-<text x="40" y="32" text-anchor="end" fill="#5d5f5a">1648</text>
+<text x="40" y="32" text-anchor="end" fill="#5d5f5a">1646</text>
 <text x="14" y="164" transform="rotate(-90 14 164)" text-anchor="middle" fill="#5d5f5a">tok/s</text>
 <text x="40" y="304" text-anchor="end" fill="#5d5f5a">0</text>
 <text x="144" y="322" text-anchor="middle" fill="#15171a">c=1</text>
 <rect x="80.0" y="284.6" width="51.2" height="19.4" fill="#5d5f5a"/>
-<text x="105.6" y="280.6" text-anchor="middle" fill="#15171a">114</text>
-<rect x="144.0" y="291.5" width="51.2" height="12.5" fill="#1f5138"/>
-<text x="169.6" y="287.5" text-anchor="middle" fill="#15171a">73.8</text>
+<text x="105.6" y="280.6" text-anchor="middle" fill="#15171a">114.3</text>
+<rect x="144.0" y="291.4" width="51.2" height="12.6" fill="#1f5138"/>
+<text x="169.6" y="287.4" text-anchor="middle" fill="#15171a">73.8</text>
 <text x="336" y="322" text-anchor="middle" fill="#15171a">c=8</text>
-<rect x="272.0" y="172.8" width="51.2" height="131.2" fill="#5d5f5a"/>
-<text x="297.6" y="168.8" text-anchor="middle" fill="#15171a">772.3</text>
-<rect x="336.0" y="213.2" width="51.2" height="90.8" fill="#1f5138"/>
-<text x="361.6" y="209.2" text-anchor="middle" fill="#15171a">534.3</text>
+<rect x="272.0" y="172.2" width="51.2" height="131.8" fill="#5d5f5a"/>
+<text x="297.6" y="168.2" text-anchor="middle" fill="#15171a">774.8</text>
+<rect x="336.0" y="213.1" width="51.2" height="90.9" fill="#1f5138"/>
+<text x="361.6" y="209.1" text-anchor="middle" fill="#15171a">534.3</text>
 <text x="528" y="322" text-anchor="middle" fill="#15171a">c=32</text>
 <rect x="464.0" y="24.0" width="51.2" height="280.0" fill="#5d5f5a"/>
-<text x="489.6" y="20.0" text-anchor="middle" fill="#15171a">1648</text>
-<rect x="528.0" y="57.3" width="51.2" height="246.7" fill="#1f5138"/>
-<text x="553.6" y="53.3" text-anchor="middle" fill="#15171a">1452</text>
+<text x="489.6" y="20.0" text-anchor="middle" fill="#15171a">1646</text>
+<rect x="528.0" y="57.0" width="51.2" height="247.0" fill="#1f5138"/>
+<text x="553.6" y="53.0" text-anchor="middle" fill="#15171a">1452</text>
 <rect x="48" y="340" width="10" height="10" fill="#5d5f5a"/>
 <text x="63" y="349" fill="#15171a">vllm</text>
 <rect x="143" y="340" width="10" height="10" fill="#1f5138"/>

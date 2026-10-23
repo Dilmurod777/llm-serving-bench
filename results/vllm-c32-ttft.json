@@ -1,15 +1,23 @@
 {
   "engine": "vllm",
+  "meta": {
+    "engine_version": "0.32.0",
+    "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU / 617.42",
+    "date_utc": "2026-10-23T14:39:11+00:00",
+    "prompt_sha256": "132cbe407888c957db48807b152ca9b1f95e1904abd7f3a81b415025f0aa0d9c",
+    "max_tokens": 1
+  },
   "concurrency": 32,
   "requests": 200,
   "errors": 0,
   "output_tokens": 200,
-  "duration_s": 7.83,
-  "tokens_per_s": 25.55,
-  "p50_ms": 777.9,
-  "p95_ms": 1042.4,
-  "peak_vram_mb": 16432,
-  "cost_per_1m_tokens": 3.8,
-  "avg_power_w": 32.9,
-  "joules_per_1m_tokens": 1287442
+  "duration_s": 7.92,
+  "tokens_per_s": 25.26,
+  "p50_ms": 824.5,
+  "p95_ms": 1031.8,
+  "per_stream_tps": 1.2,
+  "peak_vram_mb": 17180,
+  "cost_per_1m_tokens": 3.85,
+  "avg_power_w": 34.0,
+  "joules_per_1m_tokens": 1346056
 }

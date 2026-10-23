@@ -1,28 +1,58 @@
 # llm-serving-bench
 
-Same model, same GPU, same 200 prompts. Three serving stacks, seven charts.
+Same model, same GPU, same 200 prompts. Three serving stacks, six charts.
 
 ![throughput by engine and concurrency](docs/chart.svg)
 
-At single-stream all three are within 8% of each other (94–114 tok/s): one 8B model
+At single-stream all three are within 8% of each other (106–114 tok/s): one 8B model
 on one GPU costs what it costs. Batching is where they part. At 32 concurrent
-requests vLLM serves **1648 tok/s** ($0.06 per 1M output tokens), llama.cpp 971
-($0.10) and Ollama 727 ($0.13) — a 2.3× spread for the same weights on the same
+requests vLLM serves **1646 tok/s** ($0.06 per 1M output tokens), llama.cpp 967
+($0.10) and Ollama 747 ($0.13) — a 2.2× spread for the same weights on the same
 card.
 
 | engine | concurrency | output tok/s | p50 ms | p95 ms | peak VRAM MiB | $/1M output tokens |
 |---|---|---|---|---|---|---|
-| ollama | 1 | 94.35 | 2593.4 | 2827.6 | 14116 | 1.03 |
-| llamacpp | 1 | 109.41 | 2308.7 | 2359.3 | 13143 | 0.89 |
-| vllm | 1 | 113.98 | 2221.1 | 2236.8 | 16088 | 0.85 |
-| ollama | 8 | 187.01 | 10964.1 | 13830.4 | 14142 | 0.52 |
-| llamacpp | 8 | 208.19 | 10040.8 | 12924.5 | 13098 | 0.47 |
-| vllm | 8 | 772.34 | 2515.6 | 2604.5 | 16258 | 0.13 |
-| ollama | 32 | 727.24 | 10311.0 | 10709.4 | 13271 | 0.13 |
-| llamacpp | 32 | 970.65 | 7535.4 | 7897.5 | 13100 | 0.10 |
-| vllm | 32 | 1647.92 | 4192.2 | 4660.0 | 16432 | 0.06 |
+| ollama | 1 | 106.07 | 2360.9 | 2380.8 | 13448 | 0.92 |
+| llamacpp | 1 | 109.90 | 2302.1 | 2329.0 | 13285 | 0.88 |
+| vllm | 1 | 114.27 | 2214.9 | 2230.4 | 16830 | 0.85 |
+| ollama | 8 | 194.82 | 10453.3 | 13474.8 | 13397 | 0.50 |
+| llamacpp | 8 | 214.02 | 9847.1 | 12775.0 | 13291 | 0.45 |
+| vllm | 8 | 774.75 | 2508.0 | 2594.5 | 16994 | 0.13 |
+| ollama | 32 | 747.46 | 10008.8 | 10358.2 | 13397 | 0.13 |
+| llamacpp | 32 | 966.60 | 7540.4 | 7867.0 | 13287 | 0.10 |
+| vllm | 32 | 1645.61 | 4205.9 | 4553.3 | 17172 | 0.06 |
 
-Regenerate this table and the chart with `make chart` (or `python -m bench.plot`).
+Regenerate these tables and the charts with `make chart` (or `python -m bench.plot`).
+
+## Speed per user
+
+![tokens per second per request by engine and concurrency](docs/perstream.svg)
+
+The table above is the server's total throughput. This one is what one user gets:
+the median of each request's own `tokens ÷ latency`, so queueing and batch
+scheduling show up instead of hiding in the total.
+
+| engine | concurrency | tok/s per user | output tok/s in total |
+|---|---|---|---|
+| ollama | 1 | 108.4 | 106.07 |
+| llamacpp | 1 | 111.2 | 109.90 |
+| vllm | 1 | 115.6 | 114.27 |
+| ollama | 8 | 23.8 | 194.82 |
+| llamacpp | 8 | 26.0 | 214.02 |
+| vllm | 8 | 102.0 | 774.75 |
+| ollama | 32 | 25.6 | 747.46 |
+| llamacpp | 32 | 33.9 | 966.60 |
+| vllm | 32 | 60.8 | 1645.61 |
+
+This is the harsher comparison. At eight concurrent users vLLM still delivers
+**102 tok/s per user** — readable speed — while the two GGUF engines drop to 24–26,
+about a quarter of their single-stream rate. At 32 users vLLM halves to 61 while
+they sit at 26–34.
+
+The GGUF engines are also *slower per user at 8 than at 32* (23.8 vs 25.6 on Ollama,
+26.0 vs 33.9 on llama.cpp). Queueing alone cannot do that: fewer users should mean
+faster streams. Their backends are filling the batch badly at eight slots, which is
+why the aggregate curve looks like a dip at 8 rather than a step.
 
 ## Time to first token
 
@@ -33,20 +63,20 @@ i.e. what a streaming client waits for before any text appears.
 
 | engine | concurrency | p50 ms | p95 ms |
 |---|---|---|---|
-| ollama | 1 | 47.8 | 65.4 |
-| llamacpp | 1 | 42.3 | 59.0 |
-| vllm | 1 | 33.7 | 48.0 |
-| ollama | 8 | 367.5 | 470.6 |
-| llamacpp | 8 | 367.5 | 466.6 |
-| vllm | 8 | 190.0 | 257.1 |
-| ollama | 32 | 1304.1 | 1693.9 |
-| llamacpp | 32 | 1247.7 | 1609.9 |
-| vllm | 32 | 777.9 | 1042.4 |
+| ollama | 1 | 47.0 | 63.7 |
+| llamacpp | 1 | 42.1 | 57.7 |
+| vllm | 1 | 32.1 | 47.1 |
+| ollama | 8 | 362.1 | 459.0 |
+| llamacpp | 8 | 352.2 | 464.9 |
+| vllm | 8 | 203.0 | 255.9 |
+| ollama | 32 | 1258.0 | 1588.9 |
+| llamacpp | 32 | 1215.4 | 1566.6 |
+| vllm | 32 | 824.5 | 1031.8 |
 
-Unloaded, all three are in the same 34–48 ms band; vLLM is fastest because its
+Unloaded, all three are in the same 32–47 ms band; vLLM is fastest because its
 scheduler admits the whole batch in one step. Under load the GGUF engines queue
-behind their slots (1.25–1.30 s at 32) while vLLM's continuous batching keeps the
-wait at 0.78 s. A 256-token benchmark hides this completely — the first token is
+behind their slots (1.22–1.26 s at 32) while vLLM's continuous batching keeps the
+wait at 0.82 s. A 256-token benchmark hides this completely — the first token is
 what a user actually feels.
 
 ## Power and energy
@@ -58,21 +88,21 @@ read the deltas between engines rather than the absolute watts).
 
 | engine | concurrency | avg W | J/1M output tokens |
 |---|---|---|---|
-| ollama | 1 | 138.1 | 1,463,691 |
-| llamacpp | 1 | 137.8 | 1,259,523 |
-| vllm | 1 | 131.2 | 1,151,071 |
-| ollama | 8 | 131.3 | 702,105 |
-| llamacpp | 8 | 131.7 | 632,582 |
-| vllm | 8 | 128.5 | 166,377 |
-| ollama | 32 | 94.3 | 129,669 |
-| llamacpp | 32 | 108.7 | 111,987 |
-| vllm | 32 | 142.4 | 86,412 |
+| ollama | 1 | 134.1 | 1,264,260 |
+| llamacpp | 1 | 137.3 | 1,249,352 |
+| vllm | 1 | 130.7 | 1,143,832 |
+| ollama | 8 | 127.1 | 652,409 |
+| llamacpp | 8 | 129.8 | 606,484 |
+| vllm | 8 | 127.7 | 164,828 |
+| ollama | 32 | 87.1 | 116,528 |
+| llamacpp | 32 | 105.9 | 109,560 |
+| vllm | 32 | 139.8 | 84,953 |
 
-Energy per token falls ~17× from single stream to 32 concurrent on vLLM and ~13× on
-Ollama. Note the direction at the top end: vLLM draws the *most* watts at 32 slots
-(142 W) and still uses the least energy per token, because it finishes 2.3× more
-tokens in the same second. Watts are a power bill; joules per token are the bill for
-the work.
+Energy per token falls ~13× from single stream to 32 concurrent on vLLM and ~11× on
+the GGUF engines. Note the direction at the top end: vLLM draws the *most* watts at
+32 slots (140 W) and still uses the least energy per token, because it finishes 2.2×
+more tokens in the same second. Watts are a power bill; joules per token are the bill
+for the work.
 
 
 ## FP8 vs AWQ
@@ -81,11 +111,11 @@ the work.
 
 | engine | concurrency | output tok/s | p50 ms | p95 ms | peak VRAM MiB | $/1M output tokens |
 |---|---|---|---|---|---|---|
-| vllm (AWQ) | 1 | 113.98 | 2221.1 | 2236.8 | 16088 | 0.85 |
+| vllm (AWQ) | 1 | 114.27 | 2214.9 | 2230.4 | 16830 | 0.85 |
 | vllm-fp8 | 1 | 73.85 | 3440.9 | 3456.0 | 16739 | 1.32 |
-| vllm (AWQ) | 8 | 772.34 | 2515.6 | 2604.5 | 16258 | 0.13 |
+| vllm (AWQ) | 8 | 774.75 | 2508.0 | 2594.5 | 16994 | 0.13 |
 | vllm-fp8 | 8 | 534.26 | 3710.1 | 3781.9 | 16882 | 0.18 |
-| vllm (AWQ) | 32 | 1647.92 | 4192.2 | 4660.0 | 16432 | 0.06 |
+| vllm (AWQ) | 32 | 1645.61 | 4205.9 | 4553.3 | 17172 | 0.06 |
 | vllm-fp8 | 32 | 1451.85 | 4712.6 | 4991.0 | 17118 | 0.07 |
 
 FP8 loses at every point: −35% throughput at one stream, −31% at 8, −12% at 32, and it
@@ -103,11 +133,11 @@ not.
 
 | engine | concurrency | output tok/s | p50 ms | p95 ms | peak VRAM MiB | $/1M output tokens |
 |---|---|---|---|---|---|---|
-| vllm | 1 | 113.98 | 2221.1 | 2236.8 | 16088 | 0.85 |
+| vllm | 1 | 114.27 | 2214.9 | 2230.4 | 16830 | 0.85 |
 | vllm-spec | 1 | 157.31 | 1488.9 | 2369.4 | 16086 | 0.62 |
-| vllm | 8 | 772.34 | 2515.6 | 2604.5 | 16258 | 0.13 |
+| vllm | 8 | 774.75 | 2508.0 | 2594.5 | 16994 | 0.13 |
 | vllm-spec | 8 | 980.11 | 1861.4 | 2896.0 | 16082 | 0.10 |
-| vllm | 32 | 1647.92 | 4192.2 | 4660.0 | 16432 | 0.06 |
+| vllm | 32 | 1645.61 | 4205.9 | 4553.3 | 17172 | 0.06 |
 | vllm-spec | 32 | 1674.47 | 4141.0 | 6487.9 | 16348 | 0.06 |
 
 A 0.6B draft model proposes 5 tokens per step and the 8B target verifies them in one
@@ -196,9 +226,9 @@ and print the Markdown tables. The two extra vLLM configurations are opt-in:
 ENGINES=ollama,llamacpp,vllm,vllm-fp8,vllm-spec make bench
 ```
 
-`make test` runs the 21 unit tests (summary and energy math, the three HTTP adapters
-against mocked servers, the VRAM gate, the sweep runner, prompt-set integrity, the
-charts).
+`make test` runs the 23 unit tests (summary, energy and per-user math, the three HTTP
+adapters against mocked servers, the VRAM gate, the sweep runner, prompt-set
+integrity, the charts).
 
 ## Layout
 
@@ -207,8 +237,8 @@ bench/       config, engine adapters, sweep runner, summary math, VRAM sampler, 
 data/        200 fixed prompts (sha256-pinned)
 scripts/     install_engines.sh, fetch_models.sh, run_all.sh, Modelfile
 results/     one json + 200-record jsonl per (engine, concurrency)
-docs/        chart.svg, ttft.svg, energy.svg, fp8.svg, spec.svg, design and plan
-tests/       21 pytest tests
+docs/        chart.svg, perstream.svg, ttft.svg, energy.svg, fp8.svg, spec.svg
+tests/       23 pytest tests
 ```
 
 ## Caveats
@@ -219,12 +249,16 @@ tests/       21 pytest tests
   reservation, llama.cpp's per-slot cache, vLLM's utilisation cap), not just weights.
 - Token counts are each server's own accounting (`eval_count`,
   `timings.predicted_n`, `usage.completion_tokens`).
-- Numbers are one machine on one day. The point is the shape of the curve and the
-  cost per token, not a leaderboard position.
-- The curve is not monotonic: for both GGUF engines concurrency 8 is the least
-  efficient point (about 2× the single-stream rate), while 32 slots reach 7–9×
-  (vLLM: 15×). That is the servers' step batching growing with the number of active
-  slots, not a measurement error — two independent Ollama runs agree within 10%.
+- Numbers are one machine, and repeated runs differ: two independent full sweeps of
+  the three baseline engines agree within 4% everywhere except Ollama at concurrency
+  1 (12%), the least stable point because one prompt hits Ollama's repeat guard. The
+  FP8 and speculative-decoding variants were measured in a separate session; their
+  vLLM baseline column shows the main table's numbers so the comparison stays
+  apples to apples.
+- The total-throughput curve is not monotonic: for both GGUF engines concurrency 8 is
+  the least efficient point (about 2× the single-stream rate), while 32 slots reach
+  7–9× (vLLM: 15×). The per-user table shows why this is batch fill rather than
+  queueing — each stream is *slower* at 8 than at 32.
 - vLLM runs with `VLLM_USE_FLASHINFER_SAMPLER=0`. Its flashinfer sampler JIT-compiles
   C++ on first use and demands a full CUDA toolkit; the torch sampler avoids that.
   It is the sampling kernel, not the model path, and at `temperature=0` it costs

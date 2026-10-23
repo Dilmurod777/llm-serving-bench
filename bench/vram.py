@@ -37,6 +37,24 @@ def read_power_w() -> float:
     return float(out.strip().splitlines()[0].strip())
 
 
+def gpu_name() -> str:
+    """Card and driver, stored with every result so the JSON is self-describing."""
+    try:
+        out = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=name,driver_version",
+                "--format=csv,noheader",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        return out.splitlines()[0].replace(", ", " / ")
+    except Exception:
+        return "unknown"
+
+
 def assert_idle(min_free_mb: int = 14000, reader=read_free_mb) -> None:
     """Refuse to measure while another model is loaded: two engines share the GPU.
 

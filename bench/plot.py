@@ -38,6 +38,12 @@ POWER_COLUMNS = (
     ("avg_power_w", "watts"),
     ("joules_per_1m_tokens", "J/1M output tokens"),
 )
+PERSTREAM_COLUMNS = (
+    ("engine", "engine"),
+    ("concurrency", "concurrency"),
+    ("per_stream_tps", "tok/s per user"),
+    ("tokens_per_s", "output tok/s in total"),
+)
 
 
 def load_results(paths: list[str]) -> list[dict]:
@@ -157,6 +163,11 @@ def main(argv: list[str]) -> None:
     )
     to_svg(base, "docs/chart.svg")
     print(to_markdown(base))
+
+    per_stream = [r for r in base if r.get("per_stream_tps") is not None]
+    if per_stream:
+        to_svg(per_stream, "docs/perstream.svg", "per_stream_tps", "tok/s per user")
+        print(to_markdown(per_stream, PERSTREAM_COLUMNS))
 
     ttft_rows = sorted(
         pick(ENGINES, ttft=True), key=lambda r: (r["concurrency"], _order(r["engine"]))

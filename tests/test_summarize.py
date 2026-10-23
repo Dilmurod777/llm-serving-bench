@@ -44,3 +44,13 @@ def test_energy_per_million_tokens():
     # 200 tokens / 10 s = 20 tok/s; 300 W / 20 = 15 J/token
     assert s["avg_power_w"] == 300.0
     assert s["joules_per_1m_tokens"] == 15_000_000
+
+
+def test_per_stream_tps_is_the_median_request_rate():
+    records = [
+        {"latency_ms": 1000, "completion_tokens": 100, "error": None},  # 100 tok/s
+        {"latency_ms": 1000, "completion_tokens": 50, "error": None},  # 50 tok/s
+        {"latency_ms": 2000, "completion_tokens": 100, "error": None},  # 50 tok/s
+    ]
+    s = summarize(records, 8, 10.0, 1000)
+    assert s["per_stream_tps"] == 50.0

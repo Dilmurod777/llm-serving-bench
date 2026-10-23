@@ -1,14 +1,15 @@
 import argparse
 import asyncio
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import CONCURRENCIES, MAX_TOKENS
 from .engines import LlamaCppEngine, OllamaEngine, VllmEngine
-from .prompts import load_prompts
+from .prompts import PROMPTS_SHA256, load_prompts
 from .runner import run_sweep
 from .summarize import summarize
-from .vram import VramSampler, assert_idle
+from .vram import VramSampler, assert_idle, gpu_name
 
 DEFAULTS = {
     "ollama": ("http://127.0.0.1:11434", "qwen3-8b-q4"),
@@ -46,9 +47,17 @@ async def run(
         assert_idle()
     with VramSampler() as vram:
         records, duration_s = await run_sweep(engine, prompts, concurrency)
+    engine_version = await engine.version()
     await engine.aclose()
     summary = {
         "engine": engine_name,
+        "meta": {
+            "engine_version": engine_version,
+            "gpu": gpu_name(),
+            "date_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "prompt_sha256": PROMPTS_SHA256,
+            "max_tokens": max_tokens,
+        },
         **summarize(
             records,
             concurrency,

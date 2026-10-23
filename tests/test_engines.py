@@ -72,3 +72,16 @@ def test_error_carries_engine_and_body():
     engine = _engine(LlamaCppEngine, lambda req: httpx.Response(500, text="CUDA OOM"))
     with pytest.raises(EngineError, match="llamacpp: HTTP 500: CUDA OOM"):
         asyncio.run(engine.complete("hello"))
+
+
+def test_version_probe_reads_each_server_and_degrades_to_unknown():
+    ollama = _engine(
+        OllamaEngine, lambda req: httpx.Response(200, json={"version": "0.40.8"})
+    )
+    vllm = _engine(
+        VllmEngine, lambda req: httpx.Response(200, json={"version": "0.32.0"})
+    )
+    broken = _engine(OllamaEngine, lambda req: httpx.Response(404))
+    assert asyncio.run(ollama.version()) == "0.40.8"
+    assert asyncio.run(vllm.version()) == "0.32.0"
+    assert asyncio.run(broken.version()) == "unknown"
