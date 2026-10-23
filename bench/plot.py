@@ -46,6 +46,15 @@ PERSTREAM_COLUMNS = (
 )
 
 
+SHORT_COLUMNS = (
+    ("engine", "engine"),
+    ("concurrency", "concurrency"),
+    ("requests", "requests"),
+    ("tokens_per_s", "output tok/s"),
+    ("cost_per_1m_tokens", "$/1M output tokens"),
+)
+
+
 def load_results(paths: list[str]) -> list[dict]:
     rows = [json.loads(Path(p).read_text()) for p in paths]
     return sorted(rows, key=lambda r: (r["concurrency"], _order(r["engine"])))
@@ -70,7 +79,8 @@ def _label(value: float) -> str:
         return f"{value / 1e3:.0f}k"
     if a >= 1e3:
         return f"{value:.0f}"
-    return f"{value:.1f}".rstrip("0").rstrip(".")
+    text = f"{value:.1f}"
+    return text[:-2] if text.endswith(".0") else text
 
 
 def to_markdown(rows: list[dict], columns=MAIN_COLUMNS) -> str:
@@ -190,6 +200,15 @@ def main(argv: list[str]) -> None:
     if power_rows:
         to_svg(power_rows, "docs/energy.svg", "joules_per_1m_tokens", "J/1M")
         print(to_markdown(power_rows, POWER_COLUMNS))
+
+    short_paths = sorted(str(p) for p in Path("results/short").glob("*.json"))
+    if short_paths:
+        short = sorted(
+            (json.loads(Path(p).read_text()) for p in short_paths),
+            key=lambda r: (r["concurrency"], _order(r["engine"])),
+        )
+        to_svg(short, "docs/short.svg", "cost_per_1m_tokens", "$/1M")
+        print(to_markdown(short, SHORT_COLUMNS))
 
 
 if __name__ == "__main__":

@@ -40,13 +40,22 @@ want() { case ",$ENGINES," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
 check_idle() { "$PY" -c 'from bench.vram import assert_idle; assert_idle()'; }
 
 sweep() {
-  for c in 1 8 32; do
-    "$PY" -m bench --engine "$1" --concurrency "$c" --skip-idle-check
-  done
-  # Time to first token: a one-token completion is prefill plus one decode step.
-  for c in 1 8 32; do
-    "$PY" -m bench --engine "$1" --concurrency "$c" --max-tokens 1 --skip-idle-check
-  done
+  # SHORT=1 adds the 32-token pass, SHORT=only runs nothing but that pass.
+  if [ "${SHORT:-0}" != "only" ]; then
+    for c in 1 8 32; do
+      "$PY" -m bench --engine "$1" --concurrency "$c" --skip-idle-check
+    done
+    # Time to first token: a one-token completion is prefill plus one decode step.
+    for c in 1 8 32; do
+      "$PY" -m bench --engine "$1" --concurrency "$c" --max-tokens 1 --skip-idle-check
+    done
+  fi
+  if [ "${SHORT:-0}" != "0" ]; then
+    for c in 1 8 32; do
+      "$PY" -m bench --engine "$1" --concurrency "$c" --max-tokens 32 \
+        --out "results/short/$1-c$c.json" --skip-idle-check
+    done
+  fi
 }
 
 serve_vllm() {
@@ -64,7 +73,7 @@ serve_vllm() {
   stop_all
 }
 
-mkdir -p results/engine-logs
+mkdir -p results/engine-logs results/short
 stop_all
 
 if want ollama; then

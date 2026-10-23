@@ -1,6 +1,6 @@
 # llm-serving-bench
 
-Same model, same GPU, same 200 prompts. Three serving stacks, six charts.
+Same model, same GPU, same 200 prompts. Three serving stacks, seven charts.
 
 ![throughput by engine and concurrency](docs/chart.svg)
 
@@ -151,6 +151,31 @@ acceptance varies per prompt and a rejected draft wastes the step. VRAM is uncha
 (the 1.5 GB draft fits inside the same reservation), so the trade is latency tail for
 throughput, and only at low concurrency.
 
+## Short answers
+
+![cost per 1M output tokens for 32-token answers](docs/short.svg)
+
+The same 200 prompts, capped at **32 output tokens** instead of 256 — the shape of
+an assistant reply rather than a page of text.
+
+| engine | concurrency | output tok/s | p50 ms | $/1M output tokens |
+|---|---|---|---|---|
+| ollama | 1 | 84.04 | 333.4 | 1.16 |
+| llamacpp | 1 | 92.32 | 320.8 | 1.05 |
+| vllm | 1 | 98.97 | 297.8 | 0.98 |
+| ollama | 8 | 151.37 | 1392.9 | 0.64 |
+| llamacpp | 8 | 171.19 | 1223.7 | 0.57 |
+| vllm | 8 | 438.46 | 449.6 | 0.22 |
+| ollama | 32 | 389.97 | 1991.8 | 0.25 |
+| llamacpp | 32 | 443.14 | 1629.2 | 0.22 |
+| vllm | 32 | 630.11 | 1091.7 | 0.15 |
+
+Two things change when the answer gets short. **Cost per token rises**: Ollama at one
+stream moves from $0.92 to $1.16 per million tokens, because the ~120-token prompt and
+the per-request overhead are now amortised over 32 tokens instead of 256. And **vLLM's
+lead narrows**: at 32 users it is 1.4× llama.cpp here (630 against 443 tok/s), not the
+1.7× of the 256-token sweep. Its advantage is largest when there is more decode work
+to batch, so the 256-token numbers already flatter it.
 
 ## What this measures
 
@@ -226,6 +251,9 @@ and print the Markdown tables. The two extra vLLM configurations are opt-in:
 ENGINES=ollama,llamacpp,vllm,vllm-fp8,vllm-spec make bench
 ```
 
+The 32-token "short answers" sweep is also opt-in: `SHORT=1 make bench` runs it after
+the 256-token sweeps, and `SHORT=only` runs nothing else. Both write to `results/short/`.
+
 `make test` runs the 23 unit tests (summary, energy and per-user math, the three HTTP
 adapters against mocked servers, the VRAM gate, the sweep runner, prompt-set
 integrity, the charts).
@@ -236,8 +264,8 @@ integrity, the charts).
 bench/       config, engine adapters, sweep runner, summary math, VRAM sampler, chart
 data/        200 fixed prompts (sha256-pinned)
 scripts/     install_engines.sh, fetch_models.sh, run_all.sh, Modelfile
-results/     one json + 200-record jsonl per (engine, concurrency)
-docs/        chart.svg, perstream.svg, ttft.svg, energy.svg, fp8.svg, spec.svg
+results/     one json + 200-record jsonl per (engine, concurrency); results/short/ for 32-token runs
+docs/        chart.svg, perstream.svg, ttft.svg, energy.svg, fp8.svg, spec.svg, short.svg
 tests/       23 pytest tests
 ```
 
