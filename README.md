@@ -2,6 +2,15 @@
 
 Same model, same GPU, same 200 prompts. Three serving stacks, seven charts.
 
+## What this is
+
+Three ways to serve one 8B model on a single 24 GB GPU — Ollama, llama.cpp and
+vLLM — measured on the same 200 prompts at the same concurrencies, inside one WSL2
+image so the driver and the VRAM accounting are identical for all three. It reports
+throughput, p50/p95 latency, time to first token, speed per user, VRAM, board power
+and cost per million output tokens, plus FP8, speculative decoding and short
+answers. Setup, versions and caveats: [What this measures](#what-this-measures).
+
 ![throughput by engine and concurrency](docs/chart.svg)
 
 At single-stream all three are within 8% of each other (106–114 tok/s): one 8B model
