@@ -2,14 +2,14 @@
 
 Same model, same GPU, same 200 prompts. Three serving stacks, nine charts.
 
+[![tests](https://github.com/Dilmurod777/llm-serving-bench/actions/workflows/tests.yml/badge.svg)](https://github.com/Dilmurod777/llm-serving-bench/actions/workflows/tests.yml)
+
 ## What this is
 
-Three ways to serve one 8B model on a single 24 GB GPU — Ollama, llama.cpp and
-vLLM — measured on the same 200 prompts at the same concurrencies, inside one WSL2
-image so the driver and the VRAM accounting are identical for all three. It reports
-throughput, p50/p95 latency, time to first token, speed per user, VRAM, board power
-and cost per million output tokens, plus FP8, speculative decoding and short
-answers. Setup, versions and caveats: [What this measures](#what-this-measures).
+One 8B model, one 24 GB GPU, three serving stacks — Ollama, llama.cpp and vLLM —
+inside one WSL2 image, so the driver, the VRAM accounting and the prompt set are
+identical for all three. The question is not which engine wins; it is where each one
+stops being the right choice, in tokens, seconds and dollars.
 
 ![throughput by engine and concurrency](docs/chart.svg)
 
@@ -32,6 +32,7 @@ card.
 | vllm | 32 | 1645.61 | 4205.9 | 4553.3 | 17172 | 0.06 |
 
 Regenerate these tables and the charts with `make chart` (or `python -m bench.plot`).
+Versions, request contract and caveats: [What this measures](#what-this-measures).
 
 ## Speed per user
 
@@ -252,32 +253,39 @@ half-minute stall (p95/p50 = 21).
 
 ## What this measures
 
-One 8B model served by three stacks on one RTX 5090 Laptop (24 GB), inside WSL2
-Ubuntu 24.04 so the kernel, driver and VRAM accounting are identical for all three:
+The baseline profile — the one the first table reports. All three stacks serve the
+same model on one RTX 5090 Laptop (24 GB) inside WSL2 Ubuntu 24.04:
 
 | engine | version | how it serves |
 |---|---|---|
-| Ollama | 0.40.8 | `ollama serve`, model built from the GGUF below |
+| Ollama | 0.40.8 | `ollama serve`, 32 slots × 1024 tokens of context, model built from the GGUF below |
 | llama.cpp | b11819, CUDA 13.4 prebuilt | `llama-server -c 32768 --parallel 32 -ngl 99` |
-| vLLM | 0.32.0 (torch 2.13.0+cu130) | `vllm serve Qwen/Qwen3-8B-AWQ --max-model-len 4096` |
+| vLLM | 0.32.0 (torch 2.13.0+cu130) | `vllm serve Qwen/Qwen3-8B-AWQ --max-model-len 1024 --max-num-seqs 32 --max-num-batched-tokens 8192 --gpu-memory-utilization 0.55` |
+
+The extra profiles restart the engines with different slot counts and context:
+512-token context per slot at 64/128 concurrent users, 8192-token context per slot
+for the long-prompt run. Each section says which profile it reports.
 
 Two more vLLM configurations reuse the same server: `vllm-fp8` serves the FP8
 weights instead of AWQ, and `vllm-spec` adds a 0.6B draft model
 (`--speculative-config`, 5 speculative tokens). They are opt-in, not part of the
 baseline sweep.
 
-Every request is a **raw completion** — no chat template, `temperature=0`,
-`max_tokens=256`, seed 0 — against the same 200-passage prompt set
-(`data/prompts.jsonl`, sha256 pinned in `bench/prompts.py`). Prompt text comes from
-the FAA *AC 43.13-1B* (US government work, public domain): 200 passages of
-150–400 characters, sampled deterministically.
+Every request is a **raw completion** — no chat template, `temperature=0`, seed 0 —
+against the same 200-passage prompt set (`data/prompts.jsonl`, sha256 pinned in
+`bench/prompts.py`); the baseline caps answers at 256 tokens, the TTFT sweeps at 1 and
+the short-answer sweep at 32. Prompt text comes from the FAA *AC 43.13-1B* (US
+government work, public domain): 200 passages of 150–400 characters, sampled
+deterministically. The long-prompt profile uses `data/prompts_long.jsonl` instead: 50
+passages of ~15,000 characters, also sha256-pinned.
 
-Each baseline run is 200 requests at concurrency 1, 8 and 32; every engine also gets
-a one-token sweep at the same concurrencies for time-to-first-token. The GPU must be
-idle (≥14 GB free, i.e. no model of ours resident) before an engine starts, and
-engines are stopped between runs so no two stacks are ever resident together. VRAM
-and board power are sampled every 0.5 s during a sweep; VRAM is the absolute
-`nvidia-smi` peak, so the desktop's own ~7 GB are included in every number.
+Each baseline run is 200 requests at concurrency 1, 8 and 32. The GPU must be idle
+(≥14 GB free, i.e. no model of ours resident) before an engine starts, and engines are
+stopped between runs so no two stacks are ever resident together. VRAM and board power
+are sampled every 0.5 s during a sweep; VRAM is the absolute `nvidia-smi` peak.
+
+Every `results/*.json` records the engine version, GPU and driver, UTC date and the
+sha256 of the prompt file it ran, so a checked-in number can be traced to a build.
 
 ## Models
 
@@ -368,10 +376,8 @@ tests/       24 pytest tests
   FP8 and speculative-decoding variants were measured in a separate session; their
   vLLM baseline column shows the main table's numbers so the comparison stays
   apples to apples.
-- The total-throughput curve is not monotonic: for both GGUF engines concurrency 8 is
-  the least efficient point (about 2× the single-stream rate), while 32 slots reach
-  7–9× (vLLM: 15×). The per-user table shows why this is batch fill rather than
-  queueing — each stream is *slower* at 8 than at 32.
+- The total-throughput curve is not monotonic for the GGUF engines; [Speed per
+  user](#speed-per-user) shows why that is batch fill, not queueing.
 - vLLM runs with `VLLM_USE_FLASHINFER_SAMPLER=0`. Its flashinfer sampler JIT-compiles
   C++ on first use and demands a full CUDA toolkit; the torch sampler avoids that.
   It is the sampling kernel, not the model path, and at `temperature=0` it costs
