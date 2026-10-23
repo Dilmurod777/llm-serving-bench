@@ -113,7 +113,10 @@ class VramSampler:
             self._stop.wait(self.interval_s)
 
     def __enter__(self):
-        self._peak = self.reader()
+        try:
+            self._peak = self.reader()
+        except Exception:
+            self._peak = 0
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self._thread.start()
         return self
