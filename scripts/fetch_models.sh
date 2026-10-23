@@ -6,7 +6,7 @@ mkdir -p models
 
 # name | url | sha256
 ENTRIES=(
-  "Qwen3-8B-Q4_K_M.gguf|https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf|TO_FILL"
+  "Qwen3-8B-Q4_K_M.gguf|https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf|d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785"
 )
 
 for entry in "${ENTRIES[@]}"; do

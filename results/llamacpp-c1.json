@@ -1,0 +1,13 @@
+{
+  "engine": "llamacpp",
+  "concurrency": 1,
+  "requests": 200,
+  "errors": 0,
+  "output_tokens": 51200,
+  "duration_s": 466.55,
+  "tokens_per_s": 109.74,
+  "p50_ms": 2306.4,
+  "p95_ms": 2327.8,
+  "peak_vram_mb": 12635,
+  "cost_per_1m_tokens": 0.89
+}

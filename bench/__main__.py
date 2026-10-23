@@ -33,10 +33,14 @@ async def run(
     out: Path,
     prompts_path: str,
     base_url: str | None,
+    skip_idle: bool = False,
 ) -> dict:
     engine = build_engine(engine_name, base_url)
     prompts = load_prompts(prompts_path)
-    assert_idle()
+    # Only the first sweep of an engine needs a free GPU: the engine stays
+    # resident for the next concurrency, so run_all.sh skips the gate there.
+    if not skip_idle:
+        assert_idle()
     with VramSampler() as vram:
         records, duration_s = await run_sweep(engine, prompts, concurrency)
     await engine.aclose()
@@ -68,9 +72,23 @@ def main(argv: list[str] | None = None) -> None:
         "--out", default=None, help="default: results/<engine>-c<N>.json"
     )
     parser.add_argument("--prompts", default="data/prompts.jsonl")
+    parser.add_argument(
+        "--skip-idle-check",
+        action="store_true",
+        help="the engine is already loaded from a previous sweep",
+    )
     args = parser.parse_args(argv)
     out = Path(args.out or f"results/{args.engine}-c{args.concurrency}.json")
-    asyncio.run(run(args.engine, args.concurrency, out, args.prompts, args.base_url))
+    asyncio.run(
+        run(
+            args.engine,
+            args.concurrency,
+            out,
+            args.prompts,
+            args.base_url,
+            args.skip_idle_check,
+        )
+    )
 
 
 if __name__ == "__main__":

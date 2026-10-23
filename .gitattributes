@@ -1,0 +1,4 @@
+# These run inside Linux (WSL2); a CRLF checkout breaks them.
+*.sh text eol=lf
+*.py text eol=lf
+Makefile text eol=lf
