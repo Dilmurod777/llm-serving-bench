@@ -4,10 +4,12 @@
   "requests": 200,
   "errors": 1,
   "output_tokens": 50944,
-  "duration_s": 483.08,
-  "tokens_per_s": 105.46,
-  "p50_ms": 2371.8,
-  "p95_ms": 2393.4,
-  "peak_vram_mb": 12735,
-  "cost_per_1m_tokens": 0.92
+  "duration_s": 539.94,
+  "tokens_per_s": 94.35,
+  "p50_ms": 2593.4,
+  "p95_ms": 2827.6,
+  "peak_vram_mb": 14116,
+  "cost_per_1m_tokens": 1.03,
+  "avg_power_w": 138.1,
+  "joules_per_1m_tokens": 1463691
 }

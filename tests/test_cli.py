@@ -17,7 +17,9 @@ class FakeEngine:
 
 
 def test_cli_writes_summary_and_records(tmp_path, monkeypatch):
-    monkeypatch.setattr(cli, "build_engine", lambda name, base_url=None: FakeEngine())
+    monkeypatch.setattr(
+        cli, "build_engine", lambda name, base_url=None, max_tokens=None: FakeEngine()
+    )
     monkeypatch.setattr(cli, "assert_idle", lambda *a, **k: None)
 
     out = tmp_path / "ollama-c1.json"

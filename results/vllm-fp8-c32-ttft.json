@@ -1,0 +1,15 @@
+{
+  "engine": "vllm-fp8",
+  "concurrency": 32,
+  "requests": 200,
+  "errors": 0,
+  "output_tokens": 200,
+  "duration_s": 7.98,
+  "tokens_per_s": 25.07,
+  "p50_ms": 741.5,
+  "p95_ms": 1068.3,
+  "peak_vram_mb": 17118,
+  "cost_per_1m_tokens": 3.88,
+  "avg_power_w": 32.0,
+  "joules_per_1m_tokens": 1276579
+}

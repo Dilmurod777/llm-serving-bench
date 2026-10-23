@@ -43,6 +43,25 @@ sweep() {
   for c in 1 8 32; do
     "$PY" -m bench --engine "$1" --concurrency "$c" --skip-idle-check
   done
+  # Time to first token: a one-token completion is prefill plus one decode step.
+  for c in 1 8 32; do
+    "$PY" -m bench --engine "$1" --concurrency "$c" --max-tokens 1 --skip-idle-check
+  done
+}
+
+serve_vllm() {
+  local name=$1 model=$2
+  shift 2
+  echo "=== $name ==="
+  check_idle
+  # flashinfer's JIT sampler needs nvcc; the torch sampler avoids a CUDA toolkit install
+  export VLLM_USE_FLASHINFER_SAMPLER=0
+  "$VLLM" serve "$model" --max-model-len 4096 --gpu-memory-utilization 0.55 \
+    --max-num-batched-tokens 8192 \
+    --port 8000 "$@" >"results/engine-logs/$name.log" 2>&1 &
+  wait_http http://127.0.0.1:8000/health
+  sweep "$name"
+  stop_all
 }
 
 mkdir -p results/engine-logs
@@ -68,14 +87,19 @@ stop_all
 fi
 
 if want vllm; then
-echo "=== vllm ==="
-check_idle
-# flashinfer's JIT sampler needs nvcc; the torch sampler avoids a CUDA toolkit install
-export VLLM_USE_FLASHINFER_SAMPLER=0
-"$VLLM" serve Qwen/Qwen3-8B-AWQ --max-model-len 4096 --gpu-memory-utilization 0.55 --port 8000 >results/engine-logs/vllm.log 2>&1 &
-wait_http http://127.0.0.1:8000/health
-sweep vllm
-stop_all
+serve_vllm vllm Qwen/Qwen3-8B-AWQ
+fi
+
+if want vllm-fp8; then
+# DeepGEMM JITs its FP8 kernels through deep_jit, which wants a CUDA toolkit;
+# the fallback kernel needs none.
+export VLLM_USE_DEEP_GEMM=0
+serve_vllm vllm-fp8 Qwen/Qwen3-8B-FP8
+fi
+
+if want vllm-spec; then
+serve_vllm vllm-spec Qwen/Qwen3-8B-AWQ \
+  --speculative-config '{"model":"Qwen/Qwen3-0.6B","num_speculative_tokens":5}'
 fi
 
 echo "=== done ==="

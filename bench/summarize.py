@@ -16,6 +16,7 @@ def summarize(
     duration_s: float,
     peak_vram_mb: int,
     gpu_price_per_hour: float = GPU_PRICE_PER_HOUR,
+    power_w: float | None = None,
 ) -> dict:
     ok = [r for r in records if not r.get("error")]
     tokens = sum(r["completion_tokens"] for r in ok)
@@ -24,6 +25,8 @@ def summarize(
     cost = (
         gpu_price_per_hour / (tokens_per_s * 3600) * 1e6 if tokens_per_s > 0 else None
     )
+    # W / (tokens/s) = joules per token; scaled to a million tokens.
+    joules = power_w / tokens_per_s * 1e6 if power_w and tokens_per_s > 0 else None
     return {
         "concurrency": concurrency,
         "requests": len(records),
@@ -35,4 +38,6 @@ def summarize(
         "p95_ms": round(_percentile(latencies, 0.95), 1) if latencies else None,
         "peak_vram_mb": peak_vram_mb,
         "cost_per_1m_tokens": round(cost, 2) if cost is not None else None,
+        "avg_power_w": power_w,
+        "joules_per_1m_tokens": round(joules) if joules is not None else None,
     }

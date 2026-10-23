@@ -55,3 +55,13 @@ def test_load_results_sorts_by_concurrency(tmp_path):
     b.write_text('{"engine":"ollama","concurrency":1}')
     rows = load_results([str(a), str(b)])
     assert [r["concurrency"] for r in rows] == [1, 32]
+
+
+def test_svg_can_plot_a_latency_metric(tmp_path):
+    out = tmp_path / "ttft.svg"
+    to_svg(_rows(), out, "p50_ms", "ms", engines=("ollama", "llamacpp"))
+    svg = out.read_text()
+    assert ">ms<" in svg and "p50" not in svg
+    assert (
+        svg.count("<rect") == 1 + 2 + 2
+    )  # background + two bars + two legend swatches

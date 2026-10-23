@@ -1,0 +1,15 @@
+{
+  "engine": "ollama",
+  "concurrency": 8,
+  "requests": 200,
+  "errors": 0,
+  "output_tokens": 200,
+  "duration_s": 12.65,
+  "tokens_per_s": 15.81,
+  "p50_ms": 367.5,
+  "p95_ms": 470.6,
+  "peak_vram_mb": 13161,
+  "cost_per_1m_tokens": 6.15,
+  "avg_power_w": 62.4,
+  "joules_per_1m_tokens": 3947271
+}

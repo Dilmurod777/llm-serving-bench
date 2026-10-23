@@ -2,12 +2,14 @@
   "engine": "ollama",
   "concurrency": 8,
   "requests": 200,
-  "errors": 2,
-  "output_tokens": 50688,
-  "duration_s": 259.56,
-  "tokens_per_s": 195.29,
-  "p50_ms": 9201.0,
-  "p95_ms": 16053.9,
-  "peak_vram_mb": 12741,
-  "cost_per_1m_tokens": 0.5
+  "errors": 1,
+  "output_tokens": 50944,
+  "duration_s": 272.41,
+  "tokens_per_s": 187.01,
+  "p50_ms": 10964.1,
+  "p95_ms": 13830.4,
+  "peak_vram_mb": 14142,
+  "cost_per_1m_tokens": 0.52,
+  "avg_power_w": 131.3,
+  "joules_per_1m_tokens": 702105
 }

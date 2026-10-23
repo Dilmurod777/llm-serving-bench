@@ -27,6 +27,16 @@ def read_used_mb() -> int:
     return parse_free_mb(out)
 
 
+def read_power_w() -> float:
+    out = subprocess.run(
+        ["nvidia-smi", "--query-gpu=power.draw", "--format=csv,noheader,nounits"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    return float(out.strip().splitlines()[0].strip())
+
+
 def assert_idle(min_free_mb: int = 14000, reader=read_free_mb) -> None:
     """Refuse to measure while another model is loaded: two engines share the GPU.
 
@@ -49,10 +59,17 @@ class VramSampler:
     engine's footprint plus the desktop's.
     """
 
-    def __init__(self, interval_s: float = 0.5, reader=read_used_mb):
+    def __init__(
+        self,
+        interval_s: float = 0.5,
+        reader=read_used_mb,
+        power_reader=read_power_w,
+    ):
         self.interval_s = interval_s
         self.reader = reader
+        self.power_reader = power_reader
         self._peak = 0
+        self._power: list[float] = []
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
 
@@ -60,10 +77,19 @@ class VramSampler:
     def peak_mb(self) -> int:
         return self._peak
 
+    @property
+    def avg_power_w(self) -> float | None:
+        """Mean board power over the sweep, desktop's draw included."""
+        return round(sum(self._power) / len(self._power), 1) if self._power else None
+
     def _loop(self) -> None:
         while not self._stop.is_set():
             try:
                 self._peak = max(self._peak, self.reader())
+            except Exception:
+                pass
+            try:
+                self._power.append(self.power_reader())
             except Exception:
                 pass
             self._stop.wait(self.interval_s)

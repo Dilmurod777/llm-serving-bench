@@ -33,3 +33,14 @@ def test_all_failed_run_has_no_cost():
         and s["cost_per_1m_tokens"] is None
         and s["p50_ms"] is None
     )
+
+
+def test_energy_per_million_tokens():
+    records = [
+        {"latency_ms": 1000, "completion_tokens": 100, "error": None},
+        {"latency_ms": 1000, "completion_tokens": 100, "error": None},
+    ]
+    s = summarize(records, 1, 10.0, 1000, power_w=300.0)
+    # 200 tokens / 10 s = 20 tok/s; 300 W / 20 = 15 J/token
+    assert s["avg_power_w"] == 300.0
+    assert s["joules_per_1m_tokens"] == 15_000_000

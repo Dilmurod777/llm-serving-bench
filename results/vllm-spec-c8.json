@@ -1,0 +1,15 @@
+{
+  "engine": "vllm-spec",
+  "concurrency": 8,
+  "requests": 200,
+  "errors": 0,
+  "output_tokens": 51200,
+  "duration_s": 52.24,
+  "tokens_per_s": 980.11,
+  "p50_ms": 1861.4,
+  "p95_ms": 2896.0,
+  "peak_vram_mb": 16082,
+  "cost_per_1m_tokens": 0.1,
+  "avg_power_w": 165.6,
+  "joules_per_1m_tokens": 168960
+}
