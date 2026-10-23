@@ -14,7 +14,7 @@ COLORS = {
     "vllm-fp8": "#1f5138",
     "vllm-spec": "#3b5b8a",
 }
-W, H, PAD_L, PAD_B, PAD_T = 640, 360, 48, 44, 24
+W, H, PAD_L, PAD_B, PAD_T = 640, 360, 48, 56, 24
 
 MAIN_COLUMNS = (
     ("engine", "engine"),
@@ -56,7 +56,15 @@ def _fmt(value) -> str:
 
 
 def _label(value: float) -> str:
-    return f"{value:g}"
+    """Compact enough that bar labels stay narrower than their bars."""
+    a = abs(value)
+    if a >= 1e6:
+        return f"{value / 1e6:.2f}M"
+    if a >= 1e4:
+        return f"{value / 1e3:.0f}k"
+    if a >= 1e3:
+        return f"{value:.0f}"
+    return f"{value:.1f}".rstrip("0").rstrip(".")
 
 
 def to_markdown(rows: list[dict], columns=MAIN_COLUMNS) -> str:
@@ -83,15 +91,17 @@ def to_svg(
     plot_w, plot_h = W - PAD_L - 16, H - PAD_B - PAD_T
     group_w = plot_w / max(len(concurrencies), 1)
     bar_w = group_w / (len(engines) + 1)
+    axis_y = (PAD_T + H - PAD_B) / 2
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
         'font-family="IBM Plex Mono, monospace" font-size="11">',
         f'<rect width="{W}" height="{H}" fill="#e4e3dd"/>',
         f'<line x1="{PAD_L}" y1="{PAD_T}" x2="{PAD_L}" y2="{H - PAD_B}" stroke="#b6b5ad"/>',
         f'<line x1="{PAD_L}" y1="{H - PAD_B}" x2="{W - 16}" y2="{H - PAD_B}" stroke="#b6b5ad"/>',
-        f'<text x="{PAD_L - 8}" y="{PAD_T + 8}" text-anchor="end" fill="#5d5f5a">{round(peak)}</text>',
-        f'<text x="8" y="{PAD_T + 8}" fill="#5d5f5a">{ylabel}</text>',
-        f'<text x="8" y="{H - PAD_B}" fill="#5d5f5a">0</text>',
+        f'<text x="{PAD_L - 8}" y="{PAD_T + 8}" text-anchor="end" fill="#5d5f5a">{_label(peak)}</text>',
+        f'<text x="14" y="{axis_y:.0f}" transform="rotate(-90 14 {axis_y:.0f})" '
+        f'text-anchor="middle" fill="#5d5f5a">{ylabel}</text>',
+        f'<text x="{PAD_L - 8}" y="{H - PAD_B}" text-anchor="end" fill="#5d5f5a">0</text>',
     ]
     for gi, conc in enumerate(concurrencies):
         gx = PAD_L + gi * group_w
@@ -167,7 +177,7 @@ def main(argv: list[str]) -> None:
 
     power_rows = [r for r in base if r.get("joules_per_1m_tokens") is not None]
     if power_rows:
-        to_svg(power_rows, "docs/energy.svg", "joules_per_1m_tokens", "J")
+        to_svg(power_rows, "docs/energy.svg", "joules_per_1m_tokens", "J/1M")
         print(to_markdown(power_rows, POWER_COLUMNS))
 
 
