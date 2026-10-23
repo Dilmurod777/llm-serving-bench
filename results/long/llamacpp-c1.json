@@ -1,0 +1,23 @@
+{
+  "engine": "llamacpp",
+  "meta": {
+    "engine_version": "b11819-0693dbfb9",
+    "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU / 617.42",
+    "date_utc": "2026-10-23T23:34:22+00:00",
+    "prompt_sha256": "b9df55a88732874702285224d339def6c34cf0cb00866a3bad08100130cc00aa",
+    "max_tokens": 1
+  },
+  "concurrency": 1,
+  "requests": 50,
+  "errors": 0,
+  "output_tokens": 50,
+  "duration_s": 43.59,
+  "tokens_per_s": 1.15,
+  "p50_ms": 879.8,
+  "p95_ms": 1044.9,
+  "per_stream_tps": 1.1,
+  "peak_vram_mb": 19219,
+  "cost_per_1m_tokens": 84.76,
+  "avg_power_w": 125.1,
+  "joules_per_1m_tokens": 109070117
+}

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="IBM Plex Mono, monospace" font-size="11">
+<rect width="640" height="360" fill="#e4e3dd"/>
+<line x1="48" y1="24" x2="48" y2="304" stroke="#b6b5ad"/>
+<line x1="48" y1="304" x2="624" y2="304" stroke="#b6b5ad"/>
+<text x="40" y="32" text-anchor="end" fill="#5d5f5a">2126</text>
+<text x="14" y="164" transform="rotate(-90 14 164)" text-anchor="middle" fill="#5d5f5a">tok/s</text>
+<text x="40" y="304" text-anchor="end" fill="#5d5f5a">0</text>
+<text x="192" y="322" text-anchor="middle" fill="#15171a">c=64</text>
+<rect x="84.0" y="238.2" width="57.6" height="65.8" fill="#b8321a"/>
+<text x="112.8" y="234.2" text-anchor="middle" fill="#15171a">499.7</text>
+<rect x="156.0" y="217.2" width="57.6" height="86.8" fill="#15171a"/>
+<text x="184.8" y="213.2" text-anchor="middle" fill="#15171a">658.8</text>
+<rect x="228.0" y="46.6" width="57.6" height="257.4" fill="#5d5f5a"/>
+<text x="256.8" y="42.6" text-anchor="middle" fill="#15171a">1955</text>
+<text x="480" y="322" text-anchor="middle" fill="#15171a">c=128</text>
+<rect x="372.0" y="191.9" width="57.6" height="112.1" fill="#b8321a"/>
+<text x="400.8" y="187.9" text-anchor="middle" fill="#15171a">850.9</text>
+<rect x="444.0" y="154.6" width="57.6" height="149.4" fill="#15171a"/>
+<text x="472.8" y="150.6" text-anchor="middle" fill="#15171a">1135</text>
+<rect x="516.0" y="24.0" width="57.6" height="280.0" fill="#5d5f5a"/>
+<text x="544.8" y="20.0" text-anchor="middle" fill="#15171a">2126</text>
+<rect x="48" y="340" width="10" height="10" fill="#b8321a"/>
+<text x="63" y="349" fill="#15171a">ollama</text>
+<rect x="143" y="340" width="10" height="10" fill="#15171a"/>
+<text x="158" y="349" fill="#15171a">llamacpp</text>
+<rect x="238" y="340" width="10" height="10" fill="#5d5f5a"/>
+<text x="253" y="349" fill="#15171a">vllm</text>
+</svg>

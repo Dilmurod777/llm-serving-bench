@@ -1,4 +1,11 @@
-from bench.prompts import load_prompts
+from bench.prompts import load_long_prompts, load_prompts
+
+
+def test_long_prompt_set_is_fixed():
+    prompts = load_long_prompts()
+    assert len(prompts) == 50
+    assert all(10_000 <= len(p) <= 17_000 for p in prompts)
+    assert load_prompts("data/prompts_long.jsonl") == prompts
 
 
 def test_prompt_set_is_fixed():

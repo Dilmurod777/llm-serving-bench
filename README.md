@@ -1,6 +1,6 @@
 # llm-serving-bench
 
-Same model, same GPU, same 200 prompts. Three serving stacks, seven charts.
+Same model, same GPU, same 200 prompts. Three serving stacks, nine charts.
 
 ## What this is
 
@@ -186,6 +186,70 @@ lead narrows**: at 32 users it is 1.4× llama.cpp here (630 against 443 tok/s), 
 1.7× of the 256-token sweep. Its advantage is largest when there is more decode work
 to batch, so the 256-token numbers already flatter it.
 
+## Beyond 32 users
+
+![Throughput at 64 and 128 concurrent requests](docs/wide.svg)
+
+| engine | concurrency | output tok/s | p50 ms | p95 ms | peak VRAM MiB | $/1M output tokens |
+|---|---|---|---|---|---|---|
+| ollama | 64 | 499.68 | 31535.0 | 39065.5 | 19062 | 0.19 |
+| llamacpp | 64 | 658.78 | 22492.6 | 28728.2 | 18194 | 0.15 |
+| vllm | 64 | 1954.89 | 6773.7 | 7361.7 | 17037 | 0.05 |
+| ollama | 128 | 850.93 | 32085.1 | 34546.7 | 18274 | 0.11 |
+| llamacpp | 128 | 1134.79 | 20649.4 | 23127.6 | 18035 | 0.09 |
+| vllm | 128 | 2126.16 | 11749.0 | 13530.1 | 17344 | 0.05 |
+
+None of the three saturates the card at 128 concurrent requests: every engine is
+still adding throughput, and vLLM's lead widens from 1.7× at 32 users to 1.9× at
+128. The cost per token keeps falling for the same reason.
+
+What breaks first is the user, not the GPU. At 128 concurrent requests each stream
+gets 8 tok/s on Ollama, 12 on llama.cpp and 22 on vLLM, so a 256-token answer takes
+32, 21 and 12 seconds of wall time. Aggregate throughput and interactivity diverge
+completely past 32 users, and only one of the three numbers in this table tells you
+which experience a user has.
+
+This profile reconfigures the engines for the load: 128 slots with a 512-token
+context each (vLLM also serves a 512-token maximum model length) so the KV cache
+fits. The numbers compare engines at that shape, not against the 1,024-token
+baseline.
+
+## Long prompts
+
+![95th-percentile time to first token for 4k-token prompts](docs/ttft-long.svg)
+
+| engine | concurrency | TTFT p50 ms | TTFT p95 ms |
+|---|---|---|---|
+| ollama | 1 | 872.0 | 1078.0 |
+| llamacpp | 1 | 879.8 | 1044.9 |
+| vllm | 1 | 641.6 | 811.7 |
+| ollama | 4 | 1321.3 | 5225.6 |
+| llamacpp | 4 | 1729.5 | 11287.0 |
+| vllm | 4 | 2364.5 | 3047.6 |
+| ollama | 8 | 1669.1 | 35242.7 |
+| llamacpp | 8 | 1688.5 | 37446.7 |
+| vllm | 8 | 4595.4 | 6400.6 |
+
+Fifty prompts of ~15,000 characters (about 3.6k tokens), one token per request, so
+this is prefill and nothing else. The profile gives each engine 8 slots of 8,192
+tokens of context, which fits a 4k prompt with room for a reply. The chart plots the
+95th percentile, because that is where the engines separate; the table carries both.
+
+At one user vLLM is the fastest by 27% (642 ms against 872 and 880), which is what
+you would expect from its prefill kernels. Under load the shapes invert. vLLM's
+median rises fourfold to 4.6 s because it interleaves prompt processing with decodes.
+The GGUF engines keep a median near 1.7 s — most requests are served quickly — but
+their p95 reaches 35 and 37 seconds, twenty times their own median, because llama.cpp
+processes a 4k prompt as one indivisible step: a request that lands behind it waits
+for the whole thing.
+
+So the choice depends on which number you are promising. For long documents at
+concurrency, vLLM is slower for the typical request and far more predictable
+(p95/p50 = 1.4); the GGUF engines are fast for most requests and hand a few users a
+half-minute stall (p95/p50 = 21).
+
+
+
 ## What this measures
 
 One 8B model served by three stacks on one RTX 5090 Laptop (24 GB), inside WSL2
@@ -229,6 +293,12 @@ FP8), while the GGUF engines share the same 4-bit bytes. So the vLLM row is *not
 pure serving-stack comparison — it is "vLLM at its best quantisation" against
 "llama.cpp/Ollama at a 4-bit GGUF". The README says it instead of hiding it.
 
+Serving the same GGUF in all three was tried first and is not possible on this
+stack: vLLM 0.32.0 ships no GGUF loader — no `quantization/gguf.py`, no
+`model_loader/gguf_loader.py`, and no GGUF entry in `LoadFormat` or
+`--quantization`. Removing the confound would mean a second, older vLLM install or
+a plugin, so it stays a documented limitation rather than a silent one.
+
 Weights are never in this repo. `make models` downloads and verifies them into
 `models/`, which is git-ignored.
 
@@ -263,7 +333,12 @@ ENGINES=ollama,llamacpp,vllm,vllm-fp8,vllm-spec make bench
 The 32-token "short answers" sweep is also opt-in: `SHORT=1 make bench` runs it after
 the 256-token sweeps, and `SHORT=only` runs nothing else. Both write to `results/short/`.
 
-`make test` runs the 23 unit tests (summary, energy and per-user math, the three HTTP
+The other two profiles reconfigure the engines instead of adding a pass, so each runs
+alone: `PROFILE=wide make bench` (64 and 128 concurrent, 512-token context per slot,
+`results/wide/`) and `PROFILE=long make bench` (50 prompts of ~15k characters,
+8192-token context per slot, 1/4/8 concurrent, `results/long/`).
+
+`make test` runs the 24 unit tests (summary, energy and per-user math, the three HTTP
 adapters against mocked servers, the VRAM gate, the sweep runner, prompt-set
 integrity, the charts).
 
@@ -271,11 +346,12 @@ integrity, the charts).
 
 ```
 bench/       config, engine adapters, sweep runner, summary math, VRAM sampler, chart
-data/        200 fixed prompts (sha256-pinned)
-scripts/     install_engines.sh, fetch_models.sh, run_all.sh, Modelfile
-results/     one json + 200-record jsonl per (engine, concurrency); results/short/ for 32-token runs
-docs/        chart.svg, perstream.svg, ttft.svg, energy.svg, fp8.svg, spec.svg, short.svg
-tests/       23 pytest tests
+data/        200 fixed prompts, plus 50 long ones (both sha256-pinned)
+scripts/     install_engines.sh, fetch_models.sh, run_all.sh, make_prompts*, Modelfile
+results/     one json + jsonl per (engine, concurrency); short/, wide/, long/ for profiles
+docs/        chart.svg, perstream.svg, ttft.svg, energy.svg, fp8.svg, spec.svg,
+             short.svg, wide.svg, ttft-long.svg
+tests/       24 pytest tests
 ```
 
 ## Caveats

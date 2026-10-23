@@ -154,17 +154,25 @@ def _load_all(paths: list[str]) -> list[tuple[Path, dict]]:
 
 
 def main(argv: list[str]) -> None:
-    paths = argv or sorted(str(p) for p in Path("results").glob("*.json"))
+    paths = argv or sorted(
+        str(p)
+        for p in list(Path("results").glob("*.json"))
+        + list(Path("results/wide").glob("*.json"))
+        + list(Path("results/long").glob("*.json"))
+    )
     if not paths:
         raise SystemExit("no results; run make bench first")
     loaded = _load_all(paths)
     Path("docs").mkdir(exist_ok=True)
 
-    def pick(engines: tuple[str, ...], ttft: bool | None = None) -> list[dict]:
+    def pick(
+        engines: tuple[str, ...], ttft: bool | None = None, folder: str = "results"
+    ) -> list[dict]:
         return [
             row
             for path, row in loaded
             if row["engine"] in engines
+            and path.parent.name == folder
             and (ttft is None or path.stem.endswith("-ttft") == ttft)
         ]
 
@@ -200,6 +208,23 @@ def main(argv: list[str]) -> None:
     if power_rows:
         to_svg(power_rows, "docs/energy.svg", "joules_per_1m_tokens", "J/1M")
         print(to_markdown(power_rows, POWER_COLUMNS))
+
+    wide_rows = sorted(
+        pick(ENGINES, folder="wide"),
+        key=lambda r: (r["concurrency"], _order(r["engine"])),
+    )
+    if wide_rows:
+        to_svg(wide_rows, "docs/wide.svg")
+        print(to_markdown(wide_rows))
+
+    long_rows = sorted(
+        pick(ENGINES, folder="long"),
+        key=lambda r: (r["concurrency"], _order(r["engine"])),
+    )
+    if long_rows:
+        # The finding is the tail: at 8 concurrent 4k prompts the GGUF p95 is 35 s.
+        to_svg(long_rows, "docs/ttft-long.svg", "p95_ms", "ms")
+        print(to_markdown(long_rows, TTFT_COLUMNS))
 
     short_paths = sorted(str(p) for p in Path("results/short").glob("*.json"))
     if short_paths:

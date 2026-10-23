@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .config import CONCURRENCIES, MAX_TOKENS
 from .engines import LlamaCppEngine, OllamaEngine, VllmEngine
-from .prompts import PROMPTS_SHA256, load_prompts
+from .prompts import load_prompts, prompt_sha
 from .runner import run_sweep
 from .summarize import summarize
 from .vram import VramSampler, assert_idle, gpu_name
@@ -55,7 +55,7 @@ async def run(
             "engine_version": engine_version,
             "gpu": gpu_name(),
             "date_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "prompt_sha256": PROMPTS_SHA256,
+            "prompt_sha256": prompt_sha(prompts_path),
             "max_tokens": max_tokens,
         },
         **summarize(

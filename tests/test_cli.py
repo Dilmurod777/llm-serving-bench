@@ -4,6 +4,7 @@ import pytest
 
 from bench import __main__ as cli
 from bench.engines import Completion
+from bench.prompts import prompt_sha
 
 
 class FakeEngine:
@@ -33,6 +34,7 @@ def test_cli_writes_summary_and_records(tmp_path, monkeypatch):
     assert summary["errors"] == 0 and summary["p95_ms"] == 5.0
     assert summary["meta"]["engine_version"] == "test-1"
     assert summary["meta"]["max_tokens"] == 256
+    assert summary["meta"]["prompt_sha256"] == prompt_sha()
     assert len(out.with_suffix(".jsonl").read_text().strip().splitlines()) == 200
 
 

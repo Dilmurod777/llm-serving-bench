@@ -36,22 +36,56 @@ wait_http() {
 ENGINES="${ENGINES:-ollama,llamacpp,vllm}"
 want() { case ",$ENGINES," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
 
+# baseline = 1/8/32 at 32k context; wide = 64/128 at 128 slots; long = 4k-token prompts.
+PROFILE="${PROFILE:-baseline}"
+case "$PROFILE" in
+  wide) CONCS="64 128"; SLOTS=128; CTX=512 ;;
+  long) CONCS="1 4 8"; SLOTS=8; CTX=8192 ;;
+  *)    CONCS="1 8 32"; SLOTS=32; CTX=1024 ;;
+esac
+
+# Ollama takes its slot count and per-slot context from the service unit.
+set_ollama_slots() {
+  sudo mkdir -p /etc/systemd/system/ollama.service.d
+  sudo tee /etc/systemd/system/ollama.service.d/override.conf >/dev/null <<EOF
+[Service]
+Environment="OLLAMA_NUM_PARALLEL=$2"
+Environment="OLLAMA_CONTEXT_LENGTH=$1"
+EOF
+  sudo systemctl daemon-reload
+}
+
 # Servers that preload the model must be checked before they start, not after.
 check_idle() { "$PY" -c 'from bench.vram import assert_idle; assert_idle()'; }
 
 sweep() {
+  case "$PROFILE" in
+    wide)
+      for c in $CONCS; do
+        "$PY" -m bench --engine "$1" --concurrency "$c" --skip-idle-check \
+          --out "results/wide/$1-c$c.json"
+      done
+      return 0 ;;
+    long)
+      for c in $CONCS; do
+        "$PY" -m bench --engine "$1" --concurrency "$c" --max-tokens 1 \
+          --prompts data/prompts_long.jsonl --out "results/long/$1-c$c.json" \
+          --skip-idle-check
+      done
+      return 0 ;;
+  esac
   # SHORT=1 adds the 32-token pass, SHORT=only runs nothing but that pass.
   if [ "${SHORT:-0}" != "only" ]; then
-    for c in 1 8 32; do
+    for c in $CONCS; do
       "$PY" -m bench --engine "$1" --concurrency "$c" --skip-idle-check
     done
     # Time to first token: a one-token completion is prefill plus one decode step.
-    for c in 1 8 32; do
+    for c in $CONCS; do
       "$PY" -m bench --engine "$1" --concurrency "$c" --max-tokens 1 --skip-idle-check
     done
   fi
   if [ "${SHORT:-0}" != "0" ]; then
-    for c in 1 8 32; do
+    for c in $CONCS; do
       "$PY" -m bench --engine "$1" --concurrency "$c" --max-tokens 32 \
         --out "results/short/$1-c$c.json" --skip-idle-check
     done
@@ -65,20 +99,21 @@ serve_vllm() {
   check_idle
   # flashinfer's JIT sampler needs nvcc; the torch sampler avoids a CUDA toolkit install
   export VLLM_USE_FLASHINFER_SAMPLER=0
-  "$VLLM" serve "$model" --max-model-len 4096 --gpu-memory-utilization 0.55 \
-    --max-num-batched-tokens 8192 \
+  "$VLLM" serve "$model" --max-model-len "$CTX" --gpu-memory-utilization 0.55 \
+    --max-num-batched-tokens 8192 --max-num-seqs "$SLOTS" \
     --port 8000 "$@" >"results/engine-logs/$name.log" 2>&1 &
   wait_http http://127.0.0.1:8000/health
   sweep "$name"
   stop_all
 }
 
-mkdir -p results/engine-logs results/short
+mkdir -p results/engine-logs results/short results/wide results/long
 stop_all
 
 if want ollama; then
 echo "=== ollama ==="
 check_idle
+set_ollama_slots "$CTX" "$SLOTS"
 sudo systemctl start ollama
 wait_http http://127.0.0.1:11434/api/version
 sweep ollama
@@ -89,7 +124,7 @@ if want llamacpp; then
 echo "=== llama.cpp ==="
 export LD_LIBRARY_PATH="$HOME/engines/llama.cpp/llama-b11819"
 check_idle
-"$LLAMA" -m models/Qwen3-8B-Q4_K_M.gguf -c 32768 --parallel 32 -ngl 99 --port 8080 >results/engine-logs/llamacpp.log 2>&1 &
+"$LLAMA" -m models/Qwen3-8B-Q4_K_M.gguf -c $((SLOTS * CTX)) --parallel "$SLOTS" -ngl 99 --port 8080 >results/engine-logs/llamacpp.log 2>&1 &
 wait_http http://127.0.0.1:8080/health
 sweep llamacpp
 stop_all

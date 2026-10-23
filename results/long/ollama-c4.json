@@ -1,0 +1,23 @@
+{
+  "engine": "ollama",
+  "meta": {
+    "engine_version": "0.40.8",
+    "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU / 617.42",
+    "date_utc": "2026-10-23T23:33:24+00:00",
+    "prompt_sha256": "b9df55a88732874702285224d339def6c34cf0cb00866a3bad08100130cc00aa",
+    "max_tokens": 1
+  },
+  "concurrency": 4,
+  "requests": 50,
+  "errors": 0,
+  "output_tokens": 50,
+  "duration_s": 36.4,
+  "tokens_per_s": 1.37,
+  "p50_ms": 1321.3,
+  "p95_ms": 5225.6,
+  "per_stream_tps": 0.7,
+  "peak_vram_mb": 19452,
+  "cost_per_1m_tokens": 70.78,
+  "avg_power_w": 138.6,
+  "joules_per_1m_tokens": 100899375
+}
