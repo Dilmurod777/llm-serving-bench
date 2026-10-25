@@ -260,6 +260,11 @@ the same model on one RTX 5090 Laptop (24 GB), inside WSL2 Ubuntu 24.04:
 | llama.cpp | b11819, CUDA 13.4 prebuilt | `llama-server -c 32768 --parallel 32 -ngl 99` |
 | vLLM | 0.32.0 (torch 2.13.0+cu130) | `vllm serve Qwen/Qwen3-8B-AWQ --max-model-len 1024 --max-num-seqs 32 --max-num-batched-tokens 8192 --gpu-memory-utilization 0.55` |
 
+The committed Ollama and vLLM baseline rows predate this shape: they ran with Ollama's
+defaults and vLLM at 4096 context with its default sequence limit. Only the six llama.cpp
+baseline rows ran 32 slots × 1024 tokens. The comparison tool refuses the older rows
+instead of subtracting different configurations.
+
 The extra profiles restart the engines with different slot counts and context: 512
 tokens per slot at 64 and 128 concurrent users, 8192 per slot for the long-prompt run.
 Each section says which profile it reports.
@@ -324,9 +329,14 @@ Three commands, on a machine with an RTX 5090 and WSL2 Ubuntu 24.04:
 
 ```bash
 git clone https://github.com/Dilmurod777/llm-serving-bench && cd llm-serving-bench
-make install models ollama-model
+make setup
 make bench
 ```
+
+`make setup` creates `.venv`, installs the Python package and pytest, installs Ollama
+and llama.cpp with `sudo`, downloads the GGUF, and builds the Ollama model. It takes a
+few minutes and about 5 GB of disk. vLLM is not installed by it; see
+[Reproduce on your machine](#reproduce-on-your-machine) if you want that engine.
 
 `make bench` runs `scripts/run_all.sh`. It starts one engine, sweeps concurrency 1/8/32,
 repeats the sweep with one-token requests for TTFT, stops the engine and moves to the
@@ -345,7 +355,7 @@ runs alone. `PROFILE=wide make bench` covers 64 and 128 concurrent with 512-toke
 per slot, into `results/wide/`. `PROFILE=long make bench` runs 50 prompts of ~15k
 characters with 8192-token context per slot at 1/4/8 concurrent, into `results/long/`.
 
-`make test` runs the 44 unit tests: summary, energy and per-user math, the three HTTP
+`make test` runs the 51 unit tests: summary, energy and per-user math, the three HTTP
 adapters against mocked servers, the VRAM gate, the sweep runner, prompt-set integrity,
 the charts, and the comparison guards.
 
@@ -354,10 +364,12 @@ To check your own machine's number against these, see
 
 ## Reproduce on your machine
 
-One CUDA GPU with at least 16 GB free, WSL2 Ubuntu 24.04, engines from `make install`
-and weights from `make models`. The idle gate refuses to start a sweep with less than
-14 GB free, so stop anything else that holds the card — an embedding model is the usual
-culprit.
+One CUDA GPU with at least 16 GB free, WSL2 Ubuntu 24.04, Python 3.12, and `sudo`
+for the systemd services. `make setup` creates `.venv`, installs Ollama and llama.cpp,
+downloads the GGUF, and builds the Ollama model. vLLM is optional and not installed by
+`make setup`; put its venv at `$HOME/engines/vllm-venv` if you want `ENGINE=vllm`. The
+idle gate refuses to start a sweep with less than 14 GB free, so stop anything else that
+holds the card — an embedding model is the usual culprit.
 
 Approximate wall times on this laptop: baseline ≈ 40 min, `SHORT=only` ≈ 10 min,
 `PROFILE=wide` ≈ 20 min, `PROFILE=long` ≈ 15 min, `make verify` ≈ 8 min.
@@ -366,25 +378,36 @@ Three commands to a comparable row:
 
 ```bash
 git clone https://github.com/Dilmurod777/llm-serving-bench && cd llm-serving-bench
-make install models ollama-model
+make setup
 make verify
 ```
 
 `make verify` runs one 256-token sweep at concurrency 1 into `results/local/`, then
-compares it with the committed `results/ollama-c1.json`. Use `make verify ENGINE=vllm`
-for another engine, and add `MODEL=<id>` to point Ollama or vLLM at another model. Ollama
-needs that model created first; llama.cpp is file-driven, so a `MODEL` there is reported
-and ignored.
+compares it with the committed `results/llamacpp-c1.json`. The six llama.cpp baseline
+rows are the only ones with a full comparability record; the twelve Ollama/vLLM baseline
+rows and the twelve `vllm-fp8`/`vllm-spec` rows predate it. `make verify ENGINE=ollama`
+or `ENGINE=vllm` therefore reports `no model in meta` until you regenerate that engine's
+baseline with `make bench ENGINE=ollama` (or `vllm`) under the current script. `MODEL=<id>`
+is for a sweep you will compare against a reference measured with the same model; a
+different model is reported as `incomparable`, not as a delta. llama.cpp is file-driven,
+so a `MODEL` there is reported and ignored.
+
+`make bench` writes into `results/` and can overwrite the committed reference. Run it on
+a fresh clone, or `git checkout -- results/` before `make verify`.
 
 The comparison is offline: `python -m bench.compare A B` reads JSON files only. The first
 argument is the reference, the second is yours, and the delta is `(yours − reference) /
 reference`, so positive throughput means faster and positive latency means slower. Gated
 metrics are total throughput, per-user throughput, p50 and p95. The band is 25% and
 advisory; `--strict` turns any `out`, `incomparable` or `missing` row into exit 1. VRAM,
-power, energy and cost are shown but never gated. The eighteen baseline rows were
-annotated with the model, slot count and context they ran under; their measurements are
-unchanged. The twelve committed `vllm-fp8` and `vllm-spec` files predate the record and
-stay without meta, so they are reported as `incomparable: no meta` rather than guessed at.
+power, energy and cost are shown but never gated. The six llama.cpp baseline rows carry
+the model, slot count and context they ran under; their measurements are unchanged. The
+twelve Ollama/vLLM baseline rows and the twelve committed `vllm-fp8`/`vllm-spec` files
+predate the record, so they are reported as `incomparable` with the missing key named
+rather than guessed at. The short/wide/long profile rows also lack the record; compare
+names the missing key instead of subtracting them. The committed Ollama/vLLM numbers
+were measured before the 32-slot × 1024-token baseline profile; only the llama.cpp rows
+ran that shape.
 
 ### What differs legitimately
 
@@ -417,7 +440,7 @@ scripts/     install_engines.sh, fetch_models.sh, run_all.sh, make_prompts*, Mod
 results/     one json + jsonl per (engine, concurrency); short/, wide/, long/ for profiles
 docs/        chart.svg, perstream.svg, ttft.svg, energy.svg, fp8.svg, spec.svg,
              short.svg, wide.svg, ttft-long.svg
-tests/       44 pytest tests
+tests/       51 pytest tests
 ```
 
 ## Caveats
