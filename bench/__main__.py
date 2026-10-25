@@ -20,9 +20,15 @@ DEFAULTS = {
 }
 
 
-def build_engine(name: str, base_url: str | None = None, max_tokens: int = MAX_TOKENS):
-    url, model = DEFAULTS[name]
+def build_engine(
+    name: str,
+    base_url: str | None = None,
+    max_tokens: int = MAX_TOKENS,
+    model: str | None = None,
+):
+    url, default_model = DEFAULTS[name]
     url = base_url or url
+    model = model or default_model
     if name == "ollama":
         return OllamaEngine(url, model, max_tokens)
     if name == "llamacpp":
@@ -38,8 +44,11 @@ async def run(
     base_url: str | None,
     skip_idle: bool = False,
     max_tokens: int = MAX_TOKENS,
+    model: str | None = None,
+    slots: int = 32,
+    ctx: int = 1024,
 ) -> dict:
-    engine = build_engine(engine_name, base_url, max_tokens)
+    engine = build_engine(engine_name, base_url, max_tokens, model=model)
     prompts = load_prompts(prompts_path)
     # Only the first sweep of an engine needs a free GPU: the engine stays
     # resident for the next concurrency, so run_all.sh skips the gate there.
@@ -57,6 +66,9 @@ async def run(
             "date_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "prompt_sha256": prompt_sha(prompts_path),
             "max_tokens": max_tokens,
+            "model": model or DEFAULTS[engine_name][1] or "gguf-file",
+            "slots": slots,
+            "ctx": ctx,
         },
         **summarize(
             records,
@@ -86,6 +98,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--base-url", default=None, help="default: the engine's local port"
     )
+    parser.add_argument("--model", default=None, help="default: the engine's model id")
+    parser.add_argument("--slots", type=int, default=32, help="parallel slots")
+    parser.add_argument("--ctx", type=int, default=1024, help="context per slot")
     parser.add_argument(
         "--out", default=None, help="default: results/<engine>-c<N>.json"
     )
@@ -102,6 +117,10 @@ def main(argv: list[str] | None = None) -> None:
         help="the engine is already loaded from a previous sweep",
     )
     args = parser.parse_args(argv)
+    if args.model and args.engine == "llamacpp":
+        parser.error(
+            "--model is not supported for llamacpp: the server loads the GGUF file"
+        )
     suffix = "-ttft" if args.max_tokens == 1 else ""
     out = Path(args.out or f"results/{args.engine}-c{args.concurrency}{suffix}.json")
     asyncio.run(
@@ -113,6 +132,9 @@ def main(argv: list[str] | None = None) -> None:
             args.base_url,
             args.skip_idle_check,
             args.max_tokens,
+            model=args.model,
+            slots=args.slots,
+            ctx=args.ctx,
         )
     )
 
