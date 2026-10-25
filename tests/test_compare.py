@@ -116,6 +116,31 @@ def test_compare_none_metric_is_not_divided(tmp_path):
     assert "p50_ms" in row["reason"]
 
 
+def test_main_returns_zero_with_out_rows_by_default(tmp_path, capsys):
+    a = _write(tmp_path / "a/ollama-c1.json", tokens=100)
+    b = _write(tmp_path / "b/ollama-c1.json", tokens=50)
+    assert compare_module.main([str(a.parent), str(b.parent)]) == 0
+
+
+def test_main_strict_returns_one_on_out(tmp_path):
+    a = _write(tmp_path / "a/ollama-c1.json", tokens=100)
+    b = _write(tmp_path / "b/ollama-c1.json", tokens=50)
+    assert compare_module.main([str(a.parent), str(b.parent), "--strict"]) == 1
+
+
+def test_main_accepts_two_single_files(tmp_path, capsys):
+    a = _write(tmp_path / "a/ollama-c1.json", tokens=100)
+    b = _write(tmp_path / "b/ollama-c1.json", tokens=95)
+    assert compare_module.main([str(a), str(b)]) == 0
+    assert "ollama-c1" in capsys.readouterr().out
+
+
+def test_collect_ignores_nested_directories(tmp_path):
+    _write(tmp_path / "r/ollama-c1.json")
+    _write(tmp_path / "r/local/ollama-c1.json")
+    assert set(compare_module.collect(tmp_path / "r")) == {"ollama-c1"}
+
+
 def test_to_table_prints_both_tables_and_the_reason(tmp_path):
     ref = {
         "ollama-c1": _load(_write(tmp_path / "a/ollama-c1.json")),

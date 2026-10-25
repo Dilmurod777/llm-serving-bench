@@ -1,5 +1,6 @@
 """Compare two sets of result JSONs offline: no HTTP, no GPU."""
 
+import argparse
 import json
 from pathlib import Path
 
@@ -134,3 +135,30 @@ def to_table(rows: list[dict]) -> str:
             f"{row['stem']:<20} {row['status']:<14} {row['reason']}" for row in skipped
         ]
     return "\n".join(lines)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="compare", description="Compare two sets of bench results offline."
+    )
+    parser.add_argument("reference", help="committed results (file or directory)")
+    parser.add_argument("yours", help="your results (file or directory)")
+    parser.add_argument("--tolerance", type=float, default=0.25)
+    parser.add_argument("--strict", action="store_true")
+    args = parser.parse_args(argv)
+
+    rows = compare(collect(args.reference), collect(args.yours), args.tolerance)
+    print(to_table(rows))
+    counts = {
+        status: sum(row["status"] == status for row in rows)
+        for status in ("ok", "out", "incomparable", "missing")
+    }
+    print(
+        f"{counts['ok']} ok, {counts['out']} out, "
+        f"{counts['incomparable']} incomparable, {counts['missing']} missing"
+    )
+    return 1 if args.strict and any(row["status"] != "ok" for row in rows) else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
