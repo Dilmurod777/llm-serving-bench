@@ -41,8 +41,17 @@ PROFILE="${PROFILE:-baseline}"
 case "$PROFILE" in
   wide) CONCS="64 128"; SLOTS=128; CTX=512 ;;
   long) CONCS="1 4 8"; SLOTS=8; CTX=8192 ;;
+  verify) CONCS="1"; SLOTS=32; CTX=1024 ;;
   *)    CONCS="1 8 32"; SLOTS=32; CTX=1024 ;;
 esac
+
+OUTDIR=results
+if [ "$PROFILE" = verify ] || [ -n "${MODEL:-}" ]; then
+  OUTDIR=results/local
+fi
+SHORTDIR="$OUTDIR/short"
+WIDEDIR="$OUTDIR/wide"
+LONGDIR="$OUTDIR/long"
 
 # Ollama takes its slot count and per-slot context from the service unit.
 set_ollama_slots() {
@@ -58,18 +67,33 @@ EOF
 # Servers that preload the model must be checked before they start, not after.
 check_idle() { "$PY" -c 'from bench.vram import assert_idle; assert_idle()'; }
 
+bench() {
+  local engine=$1
+  local extra=()
+  shift
+  if [ -n "${MODEL:-}" ]; then extra=(--model "$MODEL"); fi
+  "$PY" -m bench --engine "$engine" --slots "$SLOTS" --ctx "$CTX" \
+    "${extra[@]}" "$@"
+}
+
 sweep() {
   case "$PROFILE" in
+    verify)
+      for c in $CONCS; do
+        bench "$1" --concurrency "$c" --skip-idle-check \
+          --out "$OUTDIR/$1-c$c.json"
+      done
+      return 0 ;;
     wide)
       for c in $CONCS; do
-        "$PY" -m bench --engine "$1" --concurrency "$c" --skip-idle-check \
-          --out "results/wide/$1-c$c.json"
+        bench "$1" --concurrency "$c" --skip-idle-check \
+          --out "$WIDEDIR/$1-c$c.json"
       done
       return 0 ;;
     long)
       for c in $CONCS; do
-        "$PY" -m bench --engine "$1" --concurrency "$c" --max-tokens 1 \
-          --prompts data/prompts_long.jsonl --out "results/long/$1-c$c.json" \
+        bench "$1" --concurrency "$c" --max-tokens 1 \
+          --prompts data/prompts_long.jsonl --out "$LONGDIR/$1-c$c.json" \
           --skip-idle-check
       done
       return 0 ;;
@@ -77,23 +101,25 @@ sweep() {
   # SHORT=1 adds the 32-token pass, SHORT=only runs nothing but that pass.
   if [ "${SHORT:-0}" != "only" ]; then
     for c in $CONCS; do
-      "$PY" -m bench --engine "$1" --concurrency "$c" --skip-idle-check
+      bench "$1" --concurrency "$c" --skip-idle-check \
+        --out "$OUTDIR/$1-c$c.json"
     done
     # Time to first token: a one-token completion is prefill plus one decode step.
     for c in $CONCS; do
-      "$PY" -m bench --engine "$1" --concurrency "$c" --max-tokens 1 --skip-idle-check
+      bench "$1" --concurrency "$c" --max-tokens 1 --skip-idle-check \
+        --out "$OUTDIR/$1-c$c-ttft.json"
     done
   fi
   if [ "${SHORT:-0}" != "0" ]; then
     for c in $CONCS; do
-      "$PY" -m bench --engine "$1" --concurrency "$c" --max-tokens 32 \
-        --out "results/short/$1-c$c.json" --skip-idle-check
+      bench "$1" --concurrency "$c" --max-tokens 32 \
+        --out "$SHORTDIR/$1-c$c.json" --skip-idle-check
     done
   fi
 }
 
 serve_vllm() {
-  local name=$1 model=$2
+  local name=$1 model=${MODEL:-$2}
   shift 2
   echo "=== $name ==="
   check_idle
@@ -107,7 +133,7 @@ serve_vllm() {
   stop_all
 }
 
-mkdir -p results/engine-logs results/short results/wide results/long
+mkdir -p results/engine-logs "$OUTDIR" "$SHORTDIR" "$WIDEDIR" "$LONGDIR"
 stop_all
 
 if want ollama; then
@@ -126,7 +152,12 @@ export LD_LIBRARY_PATH="$HOME/engines/llama.cpp/llama-b11819"
 check_idle
 "$LLAMA" -m models/Qwen3-8B-Q4_K_M.gguf -c $((SLOTS * CTX)) --parallel "$SLOTS" -ngl 99 --port 8080 >results/engine-logs/llamacpp.log 2>&1 &
 wait_http http://127.0.0.1:8080/health
-sweep llamacpp
+if [ -n "${MODEL:-}" ]; then
+  echo "MODEL is ignored for llamacpp: the server loads models/Qwen3-8B-Q4_K_M.gguf"
+  MODEL= sweep llamacpp
+else
+  sweep llamacpp
+fi
 stop_all
 fi
 
@@ -144,6 +175,13 @@ fi
 if want vllm-spec; then
 serve_vllm vllm-spec Qwen/Qwen3-8B-AWQ \
   --speculative-config '{"model":"Qwen/Qwen3-0.6B","num_speculative_tokens":5}'
+fi
+
+if [ "$PROFILE" = verify ]; then
+  for engine in ${ENGINES//,/ }; do
+    "$PY" -m bench.compare "results/$engine-c1.json" "$OUTDIR/$engine-c1.json"
+  done
+  exit 0
 fi
 
 echo "=== done ==="

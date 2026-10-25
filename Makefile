@@ -2,7 +2,7 @@ PY := .venv/bin/python
 LLAMA := $(HOME)/engines/llama.cpp/llama-b11819/llama-server
 VLLM := $(HOME)/engines/vllm-venv/bin/vllm
 
-.PHONY: install models ollama-model serve-ollama serve-llamacpp serve-vllm serve-vllm-fp8 serve-vllm-spec bench chart test
+.PHONY: install models ollama-model serve-ollama serve-llamacpp serve-vllm serve-vllm-fp8 serve-vllm-spec bench verify chart test
 
 install:
 	bash scripts/install_engines.sh
@@ -31,6 +31,9 @@ serve-vllm-spec:
 
 bench:
 	bash scripts/run_all.sh
+
+verify:
+	PROFILE=verify ENGINES=$(or $(ENGINE),ollama) bash scripts/run_all.sh
 
 chart:
 	$(PY) -m bench.plot
