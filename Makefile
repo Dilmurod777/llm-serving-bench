@@ -8,7 +8,7 @@ setup: venv install models ollama-model
 
 venv:
 	python3 -m venv .venv
-	.venv/bin/pip install -e . pytest
+	.venv/bin/pip install httpx pytest
 
 install:
 	bash scripts/install_engines.sh

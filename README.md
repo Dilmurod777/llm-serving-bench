@@ -333,9 +333,9 @@ make setup
 make bench
 ```
 
-`make setup` creates `.venv`, installs the Python package and pytest, installs Ollama
-and llama.cpp with `sudo`, downloads the GGUF, and builds the Ollama model. It takes a
-few minutes and about 5 GB of disk. vLLM is not installed by it; see
+`make setup` creates `.venv`, installs httpx and pytest, installs Ollama and llama.cpp
+with `sudo`, downloads the GGUF, and builds the Ollama model. It takes a few minutes and
+about 5 GB of disk. vLLM is not installed by it; see
 [Reproduce on your machine](#reproduce-on-your-machine) if you want that engine.
 
 `make bench` runs `scripts/run_all.sh`. It starts one engine, sweeps concurrency 1/8/32,
