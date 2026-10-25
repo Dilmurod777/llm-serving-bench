@@ -281,9 +281,9 @@ the GPU has to be idle, at least 14 GB free, so none of our models is resident. 
 are stopped between runs, so two stacks are never resident at once. VRAM and board power
 are sampled every 0.5 s during a sweep, and VRAM is the absolute `nvidia-smi` peak.
 
-Every `results/*.json` records the engine version, the GPU and driver, the UTC date and
-the sha256 of the prompt file it ran, so any checked-in number can be traced back to a
-build.
+Every result written by this version of `bench` records the engine version, the GPU and
+driver, the UTC date, the sha256 of the prompt file it ran, and the model, slot count and
+context it ran with. Any checked-in number can be traced back to a build.
 
 ## Models
 
@@ -381,9 +381,10 @@ argument is the reference, the second is yours, and the delta is `(yours − ref
 reference`, so positive throughput means faster and positive latency means slower. Gated
 metrics are total throughput, per-user throughput, p50 and p95. The band is 25% and
 advisory; `--strict` turns any `out`, `incomparable` or `missing` row into exit 1. VRAM,
-power, energy and cost are shown but never gated. The twelve committed `vllm-fp8` and
-`vllm-spec` files predate the comparability record, so they are reported as
-`incomparable: no meta` rather than guessed at.
+power, energy and cost are shown but never gated. The eighteen baseline rows were
+annotated with the model, slot count and context they ran under; their measurements are
+unchanged. The twelve committed `vllm-fp8` and `vllm-spec` files predate the record and
+stay without meta, so they are reported as `incomparable: no meta` rather than guessed at.
 
 ### What differs legitimately
 

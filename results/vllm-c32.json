@@ -5,7 +5,10 @@
     "gpu": "NVIDIA GeForce RTX 5090 Laptop GPU / 617.42",
     "date_utc": "2026-10-23T14:39:40+00:00",
     "prompt_sha256": "132cbe407888c957db48807b152ca9b1f95e1904abd7f3a81b415025f0aa0d9c",
-    "max_tokens": 256
+    "max_tokens": 256,
+    "model": "Qwen/Qwen3-8B-AWQ",
+    "slots": 32,
+    "ctx": 1024
   },
   "concurrency": 32,
   "requests": 200,
