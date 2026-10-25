@@ -345,20 +345,78 @@ runs alone. `PROFILE=wide make bench` covers 64 and 128 concurrent with 512-toke
 per slot, into `results/wide/`. `PROFILE=long make bench` runs 50 prompts of ~15k
 characters with 8192-token context per slot at 1/4/8 concurrent, into `results/long/`.
 
-`make test` runs the 24 unit tests: summary, energy and per-user math, the three HTTP
+`make test` runs the 44 unit tests: summary, energy and per-user math, the three HTTP
 adapters against mocked servers, the VRAM gate, the sweep runner, prompt-set integrity,
-and the charts.
+the charts, and the comparison guards.
+
+To check your own machine's number against these, see
+[Reproduce on your machine](#reproduce-on-your-machine).
+
+## Reproduce on your machine
+
+One CUDA GPU with at least 16 GB free, WSL2 Ubuntu 24.04, engines from `make install`
+and weights from `make models`. The idle gate refuses to start a sweep with less than
+14 GB free, so stop anything else that holds the card — an embedding model is the usual
+culprit.
+
+Approximate wall times on this laptop: baseline ≈ 40 min, `SHORT=only` ≈ 10 min,
+`PROFILE=wide` ≈ 20 min, `PROFILE=long` ≈ 15 min, `make verify` ≈ 8 min.
+
+Three commands to a comparable row:
+
+```bash
+git clone https://github.com/Dilmurod777/llm-serving-bench && cd llm-serving-bench
+make install models ollama-model
+make verify
+```
+
+`make verify` runs one 256-token sweep at concurrency 1 into `results/local/`, then
+compares it with the committed `results/ollama-c1.json`. Use `make verify ENGINE=vllm`
+for another engine, and add `MODEL=<id>` to point Ollama or vLLM at another model. Ollama
+needs that model created first; llama.cpp is file-driven, so a `MODEL` there is reported
+and ignored.
+
+The comparison is offline: `python -m bench.compare A B` reads JSON files only. The first
+argument is the reference, the second is yours, and the delta is `(yours − reference) /
+reference`, so positive throughput means faster and positive latency means slower. Gated
+metrics are total throughput, per-user throughput, p50 and p95. The band is 25% and
+advisory; `--strict` turns any `out`, `incomparable` or `missing` row into exit 1. VRAM,
+power, energy and cost are shown but never gated. The twelve committed `vllm-fp8` and
+`vllm-spec` files predate the comparability record, so they are reported as
+`incomparable: no meta` rather than guessed at.
+
+### What differs legitimately
+
+GPU class, driver, desktop VRAM and clocks. A desktop 4090 and a laptop 5090 are not the
+same machine; the desktop compositor also holds several GB. A 25% band covers that, and
+`avg_power_w` is printed next to the delta so a throttled run is visible instead of being
+mistaken for a slow engine.
+
+### When your number is wrong
+
+| symptom | cause | fix |
+|---|---|---|
+| 10× slow, no CUDA lines in the llama.cpp log | the CUDA backend was not loaded; the runtime libraries are not beside the binary | put `libcudart` and `libcublas` next to `llama-server` |
+| `attempted to allocate 135168.00 MB` | Ollama multiplies context by parallel slots | set `OLLAMA_CONTEXT_LENGTH` per slot, not as a total |
+| GPU busy before the sweep | another process holds VRAM, usually an embedding model | stop it; the gate wants 14 GB free |
+| `Could not find nvcc` or a DeepGEMM assertion | vLLM wants a CUDA toolkit for a JIT kernel | `VLLM_USE_FLASHINFER_SAMPLER=0`, `VLLM_USE_DEEP_GEMM=0` |
+| 30–50% off with everything healthy | the laptop is throttling | rerun cool and compare `avg_power_w` |
+
+If the row says `incomparable`, read the reason before the delta: a different prompt set,
+`max_tokens`, model, slot count or context is a different measurement, and the tool will
+not subtract them.
 
 ## Layout
 
 ```
-bench/       config, engine adapters, sweep runner, summary math, VRAM sampler, chart
+bench/       config, engine adapters, sweep runner, summary math, VRAM sampler, chart,
+             compare.py (offline delta tool)
 data/        200 fixed prompts, plus 50 long ones (both sha256-pinned)
 scripts/     install_engines.sh, fetch_models.sh, run_all.sh, make_prompts*, Modelfile
 results/     one json + jsonl per (engine, concurrency); short/, wide/, long/ for profiles
 docs/        chart.svg, perstream.svg, ttft.svg, energy.svg, fp8.svg, spec.svg,
              short.svg, wide.svg, ttft-long.svg
-tests/       24 pytest tests
+tests/       44 pytest tests
 ```
 
 ## Caveats
