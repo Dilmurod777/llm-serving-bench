@@ -11,13 +11,22 @@ KEYS = ("prompt_sha256", "max_tokens", "model", "slots", "ctx")
 
 def collect(target: str | Path) -> dict[str, dict]:
     path = Path(target)
-    if path.is_file():
-        return {path.stem: json.loads(path.read_text())}
-    return {p.stem: json.loads(p.read_text()) for p in sorted(path.glob("*.json"))}
+    if not path.exists():
+        raise SystemExit(f"no such path: {path}")
+    files = [path] if path.is_file() else sorted(path.glob("*.json"))
+    out = {}
+    for file in files:
+        try:
+            out[file.stem] = json.loads(file.read_text())
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"{file}: {exc}") from exc
+    return out
 
 
-def delta(reference: float, yours: float) -> float:
+def delta(reference: float, yours: float) -> float | None:
     """Signed fraction; positive means yours is larger, so slower for latency."""
+    if reference == 0:
+        return None
     return (yours - reference) / reference
 
 
@@ -33,7 +42,8 @@ def compare(
             )
             continue
         ref, own = reference[stem], yours[stem]
-        if "meta" not in ref or "meta" not in own:
+        ref_meta, own_meta = ref.get("meta"), own.get("meta")
+        if not isinstance(ref_meta, dict) or not isinstance(own_meta, dict):
             rows.append(
                 {
                     "stem": stem,
@@ -43,13 +53,23 @@ def compare(
                 }
             )
             continue
-        differing = next(
-            (key for key in KEYS if ref["meta"].get(key) != own["meta"].get(key)), None
+        missing = next(
+            (key for key in KEYS if key not in ref_meta or key not in own_meta), None
         )
+        if missing:
+            rows.append(
+                {
+                    "stem": stem,
+                    "status": "incomparable",
+                    "reason": f"no {missing} in meta",
+                    "metrics": {},
+                }
+            )
+            continue
+        differing = next((key for key in KEYS if ref_meta[key] != own_meta[key]), None)
         if differing:
             reason = (
-                f"{differing} differs: {ref['meta'].get(differing)}"
-                f" != {own['meta'].get(differing)}"
+                f"{differing} differs: {ref_meta[differing]} != {own_meta[differing]}"
             )
             rows.append(
                 {
@@ -78,15 +98,31 @@ def compare(
                 }
             )
             continue
+        zero = next((metric for metric in GATED if ref.get(metric) == 0), None)
+        if zero:
+            rows.append(
+                {
+                    "stem": stem,
+                    "status": "incomparable",
+                    "reason": f"{zero} has zero reference",
+                    "metrics": {},
+                }
+            )
+            continue
         metrics = {}
         for metric in GATED + UNGATED:
             a, b = ref.get(metric), own.get(metric)
+            change = None if a is None or b is None else delta(a, b)
+            band = "—"
+            if metric in GATED and change is not None:
+                band = "ok" if abs(change) <= tolerance else "out"
             metrics[metric] = {
                 "reference": a,
                 "yours": b,
-                "delta": None if a is None or b is None else delta(a, b),
+                "delta": change,
+                "band": band,
             }
-        ok = all(abs(metrics[metric]["delta"]) <= tolerance for metric in GATED)
+        ok = all(metrics[metric]["band"] == "ok" for metric in GATED)
         rows.append(
             {
                 "stem": stem,
@@ -102,9 +138,7 @@ def _number(value: float | None) -> str:
     return "—" if value is None else f"{value:.2f}"
 
 
-def _table(
-    title: str, names: tuple[str, ...], rows: list[dict], gated: bool
-) -> list[str]:
+def _table(title: str, names: tuple[str, ...], rows: list[dict]) -> list[str]:
     lines = [
         title,
         f"{'file':<20} {'metric':<24} {'reference':>12} {'yours':>12} {'delta %':>9}  band",
@@ -117,7 +151,7 @@ def _table(
             change = (
                 "—" if values["delta"] is None else f"{values['delta'] * 100:+.1f}%"
             )
-            band = row["status"] if gated else "—"
+            band = values.get("band", "—")
             lines.append(
                 f"{row['stem']:<20} {name:<24} {_number(values['reference']):>12}"
                 f" {_number(values['yours']):>12} {change:>9}  {band}"
@@ -126,8 +160,8 @@ def _table(
 
 
 def to_table(rows: list[dict]) -> str:
-    lines = _table("GATED", GATED, rows, gated=True)
-    lines += [""] + _table("UNGATED", UNGATED, rows, gated=False)
+    lines = _table("GATED", GATED, rows)
+    lines += [""] + _table("UNGATED", UNGATED, rows)
     skipped = [row for row in rows if row["status"] not in ("ok", "out")]
     if skipped:
         lines += ["", "NOT COMPARED"]
@@ -143,9 +177,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("reference", help="committed results (file or directory)")
     parser.add_argument("yours", help="your results (file or directory)")
-    parser.add_argument("--tolerance", type=float, default=0.25)
+    parser.add_argument(
+        "--tolerance",
+        type=float,
+        default=0.25,
+        help="fraction, default 0.25 (=25%%)",
+    )
     parser.add_argument("--strict", action="store_true")
     args = parser.parse_args(argv)
+    if args.tolerance <= 0:
+        parser.error("--tolerance must be > 0")
 
     rows = compare(collect(args.reference), collect(args.yours), args.tolerance)
     print(to_table(rows))

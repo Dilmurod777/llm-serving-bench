@@ -92,5 +92,7 @@ def test_model_override_reaches_the_engine():
 
 
 def test_model_flag_is_rejected_for_llamacpp(capsys):
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as exc:
         cli.main(["--engine", "llamacpp", "--model", "x"])
+    assert exc.value.code == 2
+    assert "not supported for llamacpp" in capsys.readouterr().err
